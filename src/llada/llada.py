@@ -59,8 +59,9 @@ class Llada:
         ### /!\ I mask only the result of the operation /!\ ###
         ### Not the best implementation, but it's a start ###
         k = 2 * number_bits + 1  # Index of the equal sign
+
         masked_tokens, mask_positions = self.random_mask(tokens, mask_ratio, k)
-        # breakpoint()
+
         output, _ = self.model(
             masked_tokens
         )  # shape: (seq_len, batch_size, vocab_size)
@@ -79,7 +80,9 @@ class Llada:
             # If no tokens were masked, return None to indicate no update done
             return None
 
-        loss = self.criterion(logits_masked, targets_masked)  # * (1/mask_ratio)
+        loss = (
+            self.criterion(logits_masked, targets_masked) * mask_ratio
+        )  # * (1/mask_ratio)
 
         optimizer.zero_grad()
         loss.backward()
