@@ -1,1 +1,13 @@
 name: llm_project
+
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pip
+  - pre-commit
+  - pip:
+    - matplotlib
