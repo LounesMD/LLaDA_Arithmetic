@@ -27,9 +27,8 @@ def main():
     ### Fixed hyperparameters:
     dataset_size = 10_000  # Hardcoded dataset size.
     train_proportion = 0.9
-    vocab_size = (
-        15  # Simple tokenizer with 0, ..., 9, "+", "=", "[PAD]", "[EOS]", "[MASK]".
-    )
+    # Simple tokenizer with 0, ..., 9, "+", "=", "[PAD]", "[EOS]", "[MASK]".
+    vocab_size = 15
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
     num_steps = 25  # 2000
@@ -110,8 +109,6 @@ def main():
                 tokenizer.decode(target_answers[:, i].numpy().tolist()),
             )
             print()
-        # print("Prompt tokens:", tokenizer.decode(prompts[:, 0].cpu().numpy()))
-        # print("Sampled tokens:", tokenizer.decode(sampled_tokens[:, 0].numpy()))
 
 
 if __name__ == "__main__":

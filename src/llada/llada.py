@@ -55,7 +55,6 @@ class Llada:
         This represents one “step” or iteration of gradient descent.
         Returns the loss value.
         """
-        # mask_ratio = 0.7
         tokens = tokens.to(self.device)
         ### /!\ I mask only the result of the operation /!\ ###
         ### Not the best implementation, but it's a start ###
@@ -80,13 +79,8 @@ class Llada:
             # If no tokens were masked, return None to indicate no update done
             return None
 
-        # loss = self.criterion(logits_masked, targets_masked)
-        loss = self.criterion(logits_masked, targets_masked)  # * (1/(1-mask_ratio))
-        # print(logits_masked.argmax(-1))
-        # print(targets_masked)
-        print(loss)
-        # breakpoint()
-        # print(targets_masked)
+        loss = self.criterion(logits_masked, targets_masked)  # * (1/mask_ratio)
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
