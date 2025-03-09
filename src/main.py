@@ -18,21 +18,21 @@ def main():
     parser.add_argument(
         "--number_bits",
         type=int,
-        default=4,
+        default=40,
         help="Number of bits for the addition dataset. If `number_bits` is n, the numbers a and b will each have at most n bits.",
     )
 
     args = parser.parse_args()
 
     ### Fixed hyperparameters:
-    dataset_size = 10_000  # Hardcoded dataset size.
+    dataset_size = 64_000  # Hardcoded dataset size.
     train_proportion = 0.9
     # Simple tokenizer with 0, ..., 9, "+", "=", "[PAD]", "[EOS]", "[MASK]".
-    vocab_size = 15
+    vocab_size = None
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
-    num_steps = 25  # 2000
-    learning_rate = 1e-3
+    num_steps = 4  # 2000
+    learning_rate = 5e-4
     device = "mps"
 
     data = []
@@ -73,7 +73,6 @@ def main():
             input_tensor = torch.cat(
                 (prompts, target_answers), 0
             )  # (length_prompts + length_answers, batch_size)
-
             llada_process.model.zero_grad()
             mask_ratio = random.random()
             loss = llada_process.train_batch(
@@ -91,11 +90,10 @@ def main():
 
     print("\nSampling from the trained model...")
     # Generate a few examples:
-    for _ in range(1):
+    for j in range(1):
         prompts, target_answers, _, _ = get_batch(
-            "test", 0, data_train, data_test, tokenizer, batch_size
+            "test", j, data_train, data_test, tokenizer, batch_size
         )
-
         sampled_tokens = llada_process.sample(
             input_tokens=prompts, seq_len=seq_len, steps=5
         )
@@ -109,6 +107,7 @@ def main():
                 tokenizer.decode(target_answers[:, i].numpy().tolist()),
             )
             print()
+        # breakpoint()
 
 
 if __name__ == "__main__":
