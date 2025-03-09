@@ -12,7 +12,10 @@ conda activate llm_project
 ```
 
 ### Run the project
-TODO
+To run train and run LLaDA:
+```python
+python src/main.py
+```
 
 ## Acknowledgements
 
