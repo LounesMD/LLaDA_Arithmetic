@@ -1,4 +1,5 @@
 import argparse
+import math
 import random
 
 import torch
@@ -8,6 +9,76 @@ from llada.llada import Llada
 from llada.utils import TransformerModel
 from tokenizer.tokenizer import character_level_tokenizer
 from utils import get_batch, sample_datapoint
+
+
+def train_epoch(
+    llada_process,
+    optimizer,
+    data_train,
+    tokenizer,
+    batch_size,
+    number_bits,
+    step,
+    freq,
+    device,
+):
+    ### Train the model for one epoch.
+    total_loss = 0.0
+    for batch, i in enumerate(range(0, len(data_train) - batch_size - 1, batch_size)):
+        prompts, target_answers, _, _ = get_batch(
+            "train", i, data_train, None, tokenizer, batch_size
+        )
+        prompts = prompts.to(device)  # (length_prompts, batch_size)
+        target_answers = target_answers.to(device)  # (length_answers, batch_size)
+
+        input_tensor = torch.cat(
+            (prompts, target_answers), 0
+        )  # (length_prompts + length_answers, batch_size)
+        llada_process.model.zero_grad()
+        mask_ratio = random.random()
+        loss = llada_process.train_batch(
+            optimizer=optimizer,
+            number_bits=number_bits,
+            tokens=input_tensor,
+            mask_ratio=mask_ratio,
+        )
+        total_loss += loss if loss is not None else 0
+
+        if batch % freq == 0 and batch > 0:
+            cur_loss = total_loss / freq
+            print(
+                "| {:5d}/{:5d} batches | loss {:5.2f} | perplexity {:8.2f}".format(
+                    batch, len(data_train) // batch_size, cur_loss, math.exp(cur_loss)
+                )
+            )
+            total_loss = 0.0
+    # return total_loss / (batch + 1)
+
+
+def evaluate(llada_process, data_test, batch_size, tokenizer, device):
+    # Turn on evaluation mode disables dropout.
+    correct = 0.0
+    with torch.no_grad():
+        for batch, i in enumerate(range(0, len(data_test) - 1, batch_size)):
+            prompts, target_answers, length_prompts, length_answers = get_batch(
+                "test", i, None, data_test, tokenizer, batch_size
+            )
+            prompts = prompts.to(device)  # (length_prompts, batch_size)
+            target_answers = target_answers.to(
+                device
+            )  # (length_answers + 1, batch_size)
+            output = llada_process.sample(
+                input_tokens=prompts, seq_len=length_answers + 1, steps=5
+            )  # TODO: Check why it should be length_answers + 1
+            answers_tokens = output[
+                length_prompts:, :
+            ]  # (length_answers + 1, batch_size), contains tokens
+            equality_test = (
+                answers_tokens == target_answers.cpu()
+            )  # (length_answers + 1, batch_size), contains boolean values
+            correct += torch.all(equality_test, axis=0).float().sum()
+        accuracy = correct / len(data_test)
+    return accuracy.item()
 
 
 def main():
@@ -31,12 +102,12 @@ def main():
     vocab_size = None
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
-    num_steps = 4  # 2000
+    num_steps = 5  # 2000
     learning_rate = 5e-4
     device = "mps"
 
     data = []
-    for _ in range(dataset_size):
+    for i in range(dataset_size):
         data.append(sample_datapoint(args.number_bits))
 
     data_train = data[: int(train_proportion * dataset_size)]
@@ -60,37 +131,33 @@ def main():
     llada_process.model.train()
 
     for step in range(num_steps):
-        total_loss = 0.0
-        for batch, i in enumerate(
-            range(0, len(data_train) - batch_size - 1, batch_size)
-        ):
-            prompts, target_answers, length_prompts, length_answers = get_batch(
-                "train", i, data_train, data_test, tokenizer, batch_size
-            )
-            prompts = prompts.to(device)  # (length_prompts, batch_size)
-            target_answers = target_answers.to(device)  # (length_answers, batch_size)
+        llada_process.model.train()
+        train_epoch(
+            llada_process=llada_process,
+            optimizer=optimizer,
+            data_train=data_train,
+            tokenizer=tokenizer,
+            batch_size=batch_size,
+            number_bits=args.number_bits,
+            step=step,
+            freq=100,
+            device=device,
+        )
+        # print(f"Final step {step}, total loss: {total_loss}")
 
-            input_tensor = torch.cat(
-                (prompts, target_answers), 0
-            )  # (length_prompts + length_answers, batch_size)
-            llada_process.model.zero_grad()
-            mask_ratio = random.random()
-            loss = llada_process.train_batch(
-                optimizer=optimizer,
-                number_bits=args.number_bits,
-                tokens=input_tensor,
-                mask_ratio=mask_ratio,
-            )
-            total_loss += loss if loss is not None else 0
-
-            if batch % 10 == 0 and batch > 0:
-                print(f"Step {step}, batch {batch}, loss: {total_loss / batch}")
-
-        print(f"Step {step}, total loss: {total_loss / (batch+ 1)}")
+        llada_process.model.eval()
+        test_accuracy = evaluate(
+            llada_process, data_test, batch_size, tokenizer, device
+        )
+        print("-" * 89)
+        print(
+            "| end of epoch {:3d} | test accuracy {:5.2f}".format(step, test_accuracy)
+        )
+        print("-" * 89)
 
     print("\nSampling from the trained model...")
     # Generate a few examples:
-    for j in range(1):
+    for j in range(5):
         prompts, target_answers, _, _ = get_batch(
             "test", j, data_train, data_test, tokenizer, batch_size
         )
