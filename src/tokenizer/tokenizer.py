@@ -96,9 +96,7 @@ class character_level_tokenizer:
             )
         a = ""
         b = ""
-        for token in token_list[: 2 * self.number_bits][
-            1::2
-        ]:  # Access odd-indexed elements directly
+        for token in token_list[: 2 * self.number_bits][1::2]:
             a += str(token // 10)
             b += str(token % 10)
         return (
@@ -107,6 +105,6 @@ class character_level_tokenizer:
             + str(int(b))
             + "="
             + "".join(
-                [self.id_to_token[x] for x in token_list[-self.number_bits - 1 :]]
+                [self.id_to_token[x] for x in token_list[2 * self.number_bits + 1 :]]
             )
         )
