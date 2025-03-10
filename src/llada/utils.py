@@ -91,3 +91,26 @@ def add_gumbel_noise(logits, temperature):
     noise = torch.rand_like(logits, dtype=torch.float32)
     gumbel_noise = (-torch.log(noise)) ** temperature
     return logits.exp() / gumbel_noise
+
+
+def get_num_transfer_tokens(mask_index, steps):
+    """
+    In the reverse process, the interval [0, 1] is uniformly discretized into steps intervals.
+    Furthermore, because LLaDA employs a linear noise schedule (as defined in Eq. (8)),
+    the expected number of tokens transitioned at each step should be consistent.
+
+    This function is designed to precompute the number of tokens that need to be transitioned at each step.
+    """
+    mask_num = mask_index.T.sum(dim=1, keepdim=True)
+
+    base = mask_num // steps
+    remainder = mask_num % steps
+    num_transfer_tokens = (
+        torch.zeros(
+            mask_num.size(0), steps, device=mask_index.device, dtype=torch.int32
+        )
+        + base
+    )
+    for i in range(mask_num.size(0)):
+        num_transfer_tokens[i, : remainder[i]] += 1
+    return num_transfer_tokens.T

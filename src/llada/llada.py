@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from llada.utils import add_gumbel_noise
+from llada.utils import add_gumbel_noise, get_num_transfer_tokens
 
 
 class Llada:
@@ -87,9 +87,6 @@ class Llada:
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        for name, param in self.model.named_parameters():
-            if param.grad is None:
-                print(f"Warning: {name} has no gradient!")
 
         return loss.item()
 
@@ -99,16 +96,17 @@ class Llada:
         seq_len: int,
         input_tokens: torch.Tensor,
         steps: int = 5,
-        schedule: str = "uniform",
         re_mask_mode: str = "low_confidence",
         temperature: float = 1.0,
         cfg_scale: float = 0.0,
-        block_size: int = None,
+        block_length: int = None,
     ):
         """
-        TODO: This version of generate is not autoregressive, and can be improved.
         Use: https://github.com/ML-GSAI/LLaDA/blob/main/generate.py
-        V0 sample function for LLaDA model.
+
+        Input: [p1,...,pn]
+        Inner representation: [p1,...,pn, [MASK], [MASK], ...]
+        Output: [p1,...,pn, p_{n+1}, ..., p_{n+m}]
 
         Args:
             seq_len: Length of the sequence to generate.
@@ -135,69 +133,70 @@ class Llada:
             dtype=torch.long,
             device=self.device,
         )
-        current_tokens = torch.cat((input_tokens, current_responses), dim=0)
-        # Create time steps
-        if schedule == "uniform":
-            t_values = torch.linspace(1.0, 0.0, steps + 1).tolist()
-        else:
-            raise NotImplementedError("Only 'uniform' schedule is implemented.")
+        x = torch.cat((input_tokens, current_responses), dim=0)
+        prompt_index = x != self.mask_token_id
 
-        # Step-wise diffusion process
-        for i in range(steps):
-            t_current = t_values[i]
-            t_next = t_values[i + 1]
+        # TODO: Try to scale the output generation to make generation by blocks
+        # assert seq_len % block_length == 0
+        # num_blocks = seq_len // block_length
 
-            # Model forward pass
-            if cfg_scale > 0.0:
-                # Classifier-Free Guidance: Run model with and without condition
-                un_x = current_tokens.clone()
-                un_x[
-                    input_tokens != self.mask_token_id
-                ] = self.mask_token_id  # Remove context
-                x_combined = torch.cat(
-                    [current_tokens, un_x], dim=1
-                )  # Double batch size
-                logits = self.model(x_combined)[0]
-                logits, un_logits = torch.chunk(
-                    logits, 2, dim=1
-                )  # Split guided & unconditioned
-                logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
-            else:
-                logits = self.model(current_tokens)[0]
+        # assert steps % num_blocks == 0
+        # steps = steps // num_blocks
+        num_blocks = 1
+        block_length = seq_len
+        for num_block in range(num_blocks):
+            block_mask_index = (
+                x[
+                    input_tokens.shape[0]
+                    + num_block * block_length : input_tokens.shape[0]
+                    + (num_block + 1) * block_length :
+                ]
+                == self.mask_token_id
+            )
+            num_transfer_tokens = get_num_transfer_tokens(block_mask_index, steps)
+            # Step-wise diffusion process
+            for i in range(steps):
+                mask_index = x == self.mask_token_id
+                # Model forward pass
+                if cfg_scale > 0.0:
+                    # TODO: Check why x_ = torch.cat([x, un_x], dim=0) ?
+                    un_x = x.clone()
+                    un_x[prompt_index] = self.mask_token_id
+                    x_ = torch.cat([x, un_x], dim=0)
+                    logits = self.model(x_)[0]
+                    logits, un_logits = torch.chunk(logits, 2, dim=0)
+                    logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
+                else:
+                    logits = self.model(x)[0]
 
-            # Apply temperature scaling with Gumbel noise
-            logits_with_noise = add_gumbel_noise(logits, temperature)
+                # Apply temperature scaling with Gumbel noise
+                logits_with_noise = add_gumbel_noise(logits, temperature)
+                x0 = torch.argmax(logits_with_noise, dim=-1)
 
-            mask_positions = current_tokens == self.mask_token_id
+                if re_mask_mode == "low_confidence":
+                    p = F.softmax(logits.to(torch.float32), dim=-1)
+                    x0_p = torch.squeeze(
+                        torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)), -1
+                    )  # b, l
+                elif re_mask_mode == "random":
+                    x0_p = torch.rand((x0.shape[0], x0.shape[1]), device=x0.device)
+                else:
+                    raise NotImplementedError(re_mask_mode)
+                x0_p[
+                    input_tokens.shape[0] + (num_block + 1) * block_length :, :
+                ] = -np.inf
 
-            # We replace the masked tokens by the most predicted ones
-            if mask_positions.any():
-                predicted_ids = logits_with_noise.argmax(dim=-1)
+                x0 = torch.where(mask_index, x0, x)
+                confidence = torch.where(mask_index, x0_p, -np.inf)
 
-                # Update masked tokens
-                current_tokens[mask_positions] = predicted_ids[mask_positions]
-
-            # Re-mask for diffusion process
-            if t_next > 0:
-                fraction_to_remask = t_next / max(t_current, 1e-5)
-
-                mask_indices = mask_positions.nonzero(as_tuple=True)[0]
-                re_mask_count = int(len(mask_indices) * fraction_to_remask)
-
-                if re_mask_count > 0:
-                    if re_mask_mode == "low_confidence":
-                        # Remask least confident predictions
-                        prob_dist = F.softmax(logits, dim=-1)
-                        max_probs, _ = prob_dist.max(dim=-1)
-                        sorted_indices = mask_indices[max_probs[mask_indices].argsort()]
-                        chosen = sorted_indices[:re_mask_count]
-                    else:  # Default: Random remasking
-                        chosen = np.random.choice(
-                            mask_indices.cpu().numpy(),
-                            size=re_mask_count,
-                            replace=False,
-                        )
-
-                    current_tokens[chosen] = self.mask_token_id
-
-        return current_tokens.cpu()
+                transfer_index = torch.zeros_like(
+                    x0, dtype=torch.bool, device=x0.device
+                )
+                # breakpoint()
+                for j in range(confidence.shape[1]):
+                    _, select_index = torch.topk(
+                        confidence[:, j], k=num_transfer_tokens[i, j]
+                    )
+                    transfer_index[select_index, j] = True
+                x[transfer_index] = x0[transfer_index]
+        return x.cpu()
