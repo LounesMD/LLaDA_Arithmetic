@@ -14,7 +14,7 @@ conda activate llm_project
 ### Run the project
 To run train and run LLaDA:
 ```python
-python src/main.py
+python src/main.py --number_steps 5 --number_bits 20
 ```
 
 ## Acknowledgements
