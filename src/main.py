@@ -89,8 +89,15 @@ def main():
     parser.add_argument(
         "--number_bits",
         type=int,
-        default=40,
+        default=15,
         help="Number of bits for the addition dataset. If `number_bits` is n, the numbers a and b will each have at most n bits.",
+    )
+
+    parser.add_argument(
+        "--number_steps",
+        type=int,
+        default=5,
+        help="Number of training steps.",
     )
 
     args = parser.parse_args()
@@ -102,7 +109,7 @@ def main():
     vocab_size = None
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
-    num_steps = 5  # 2000
+    num_steps = args.number_steps  # 2000
     learning_rate = 5e-4
     device = "mps"
 
@@ -143,7 +150,6 @@ def main():
             freq=100,
             device=device,
         )
-        # print(f"Final step {step}, total loss: {total_loss}")
 
         llada_process.model.eval()
         test_accuracy = evaluate(
@@ -174,7 +180,6 @@ def main():
                 tokenizer.decode(target_answers[:, i].numpy().tolist()),
             )
             print()
-        # breakpoint()
 
 
 if __name__ == "__main__":
