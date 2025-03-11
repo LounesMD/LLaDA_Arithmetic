@@ -99,6 +99,13 @@ def main():
         default=5,
         help="Number of training steps.",
     )
+    
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="mps",
+        help="Device to use",
+    )
 
     args = parser.parse_args()
 
@@ -111,7 +118,7 @@ def main():
     batch_size = 32
     num_steps = args.number_steps  # 2000
     learning_rate = 5e-4
-    device = "mps"
+    device = args.device
 
     data = []
     for i in range(dataset_size):

@@ -11,3 +11,4 @@ dependencies:
   - pre-commit
   - pip:
     - matplotlib
+    - kaggle
