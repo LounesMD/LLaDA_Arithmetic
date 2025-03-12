@@ -28,14 +28,15 @@ def train_epoch(
         prompts, target_answers, _, _ = get_batch(
             "train", i, data_train, None, tokenizer, batch_size
         )
-        prompts = prompts.to(device)  # (length_prompts, batch_size)
-        target_answers = target_answers.to(device)  # (length_answers, batch_size)
+        prompts = prompts.to(device)
+        target_answers = target_answers.to(device)
 
-        input_tensor = torch.cat(
-            (prompts, target_answers), 0
-        )  # (length_prompts + length_answers, batch_size)
+        input_tensor = torch.cat((prompts, target_answers), 0)
         llada_process.model.zero_grad()
-        mask_ratio = random.random()
+
+        # As many mask ratios as the batch_size
+        mask_ratio = torch.rand((1, input_tensor.size(1))).to(device=device)
+
         loss = llada_process.train_batch(
             optimizer=optimizer,
             number_bits=number_bits,
@@ -47,8 +48,8 @@ def train_epoch(
         if batch % freq == 0 and batch > 0:
             cur_loss = total_loss / freq
             print(
-                "| {:5d}/{:5d} batches | loss {:5.2f} | perplexity {:8.2f}".format(
-                    batch, len(data_train) // batch_size, cur_loss, math.exp(cur_loss)
+                "| {:5d}/{:5d} batches | loss {:5.2f}".format(
+                    batch, len(data_train) // batch_size, cur_loss
                 )
             )
             total_loss = 0.0
@@ -63,20 +64,20 @@ def evaluate(llada_process, data_test, batch_size, tokenizer, device):
             prompts, target_answers, length_prompts, length_answers = get_batch(
                 "test", i, None, data_test, tokenizer, batch_size
             )
-            prompts = prompts.to(device)  # (length_prompts, batch_size)
-            target_answers = target_answers.to(
-                device
-            )  # (length_answers + 1, batch_size)
+            prompts = prompts.to(device)
+
+            target_answers = target_answers.to(device)
+
+            # TODO: Check why it should be length_answers + 1
             output = llada_process.sample(
                 input_tokens=prompts, seq_len=length_answers + 1, steps=5
-            )  # TODO: Check why it should be length_answers + 1
-            answers_tokens = output[
-                length_prompts:, :
-            ]  # (length_answers + 1, batch_size), contains tokens
-            equality_test = (
-                answers_tokens == target_answers.cpu()
-            )  # (length_answers + 1, batch_size), contains boolean values
+            )
+
+            answers_tokens = output[length_prompts:, :]
+
+            equality_test = answers_tokens == target_answers.cpu()
             correct += torch.all(equality_test, axis=0).float().sum()
+
         accuracy = correct / len(data_test)
     return accuracy.item()
 
@@ -99,7 +100,7 @@ def main():
         default=5,
         help="Number of training steps.",
     )
-    
+
     parser.add_argument(
         "--device",
         type=str,
@@ -116,7 +117,7 @@ def main():
     vocab_size = None
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
-    num_steps = args.number_steps  # 2000
+    num_steps = args.number_steps
     learning_rate = 5e-4
     device = args.device
 
@@ -164,7 +165,9 @@ def main():
         )
         print("-" * 89)
         print(
-            "| end of epoch {:3d} | test accuracy {:5.2f}".format(step, test_accuracy)
+            "| end of epoch {:3d} | test accuracy {:5.2f}".format(
+                step + 1, test_accuracy
+            )
         )
         print("-" * 89)
 
@@ -174,6 +177,7 @@ def main():
         prompts, target_answers, _, _ = get_batch(
             "test", j, data_train, data_test, tokenizer, batch_size
         )
+
         sampled_tokens = llada_process.sample(
             input_tokens=prompts, seq_len=seq_len, steps=5
         )

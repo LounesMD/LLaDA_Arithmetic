@@ -1,4 +1,5 @@
 import random
+import time
 from typing import Literal
 
 import numpy as np
@@ -28,20 +29,22 @@ class Llada:
             vocab_size: Size of the vocabulary (used in cross-entropy).
             mask_token_id: ID for the [MASK] token in the vocabulary.
             device: ["cuda", "mps", "cpu"].
+
         """
         self.model = model  # .to(device)
         self.vocab_size = vocab_size
         self.mask_token_id = mask_token_id
         self.device = device
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(reduction="sum")
 
-    def random_mask(self, tokens: torch.Tensor, t: float, k: int):
+    def random_mask(self, tokens: torch.Tensor, t: torch.tensor, k: int):
         """
         Randomly mask each token with a probability 't'.
+        't' is the mask ratio across all batches.
         Returns (masked_tokens, mask_positions).
         """
         # tokens shape: [batch_size, seq_len]
-        mask_positions = torch.rand_like(tokens.float()) < t
+        mask_positions = torch.rand_like(tokens, dtype=torch.float32) < t
         mask_positions[:k, :] = False
         masked_tokens = tokens.clone()
         masked_tokens[mask_positions] = self.mask_token_id
@@ -58,37 +61,82 @@ class Llada:
         tokens = tokens.to(self.device)
         ### /!\ I mask only the result of the operation /!\ ###
         ### Not the best implementation, but it's a start ###
-        k = 2 * number_bits + 1  # Index of the equal sign
-
+        k = 2 * number_bits + 2  # Index of the equal sign
         masked_tokens, mask_positions = self.random_mask(tokens, mask_ratio, k)
-
         output, _ = self.model(
             masked_tokens
         )  # shape: (seq_len, batch_size, vocab_size)
-        T, B, C = output.size()
+        _, B, _ = output.size()
 
-        # Flatten
-        logits_flat = output.view(-1, C)  # (B*seq_len, vocab_size)
-        targets_flat = tokens.view(-1)  # (B*seq_len,)
-        mask_positions_flat = mask_positions.view(-1)  # (B*seq_len,)
-        mask_indices = mask_positions_flat.nonzero(as_tuple=True)[0]
+        if True:
+            # Unvectorized loss. To use it, change the reduction of the criterion to "sum".
+            final_loss = 0
+            cpt = 0
+            for i in range(B):
+                if sum(mask_positions[:, i]).item() > 0:
+                    final_loss += (
+                        self.criterion(
+                            output[:, i, :][mask_positions[:, i]],
+                            tokens[:, i][mask_positions[:, i]],
+                        )
+                        / mask_ratio.squeeze(0)[i]
+                    )
+                    cpt += 1
+            if cpt == 0:
+                return None
+            final_loss /= cpt
+        else:
+            # Vectorized loss (approx. 4x)
+            # Compute loss.
+            # 1) Get the masked tokens and predictions (loss elements)
+            masked_output = output[mask_positions]
+            masked_tokens = tokens[mask_positions]
+            # For each masked position, which batch element it belongs to:
+            batch_indices = torch.where(mask_positions)[1]
 
-        # Select only masked positions for the cross-entropy loss
-        logits_masked = logits_flat[mask_indices]
-        targets_masked = targets_flat[mask_indices]
-        if len(mask_indices) == 0:
-            # If no tokens were masked, return None to indicate no update done
-            return None
+            # 2) Compute per-token loss
+            per_token_loss = self.criterion(
+                masked_output,
+                masked_tokens,
+            )
+            # 3) Per-batch mask_ratio weighting
+            # we have two steps:
+            #    - sum up per-token losses for each batch item
+            #    - multiply by 1/mask_ratio[i]
+            # and mean over batches.
 
-        loss = (
-            self.criterion(logits_masked, targets_masked) * mask_ratio
-        )  # * (1/mask_ratio)
+            # Number of masked tokens in each batch item
+            counts_per_batch = mask_positions.sum(dim=0)
+
+            # Scatter-add per_token_loss into a length-B tensor that sums losses by batch index.
+            # Initialize a (B,) zero Tensor and index_add/scatter_add with batch_indices.
+            loss_sum_per_batch = torch.zeros_like(
+                counts_per_batch, dtype=per_token_loss.dtype
+            )
+            loss_sum_per_batch.index_add_(0, batch_indices, per_token_loss)
+            # We'll just be careful about dividing by zero if some item i has no masked tokens.
+            mask_ratio_squeezed = mask_ratio.squeeze(0)  # ensure shape (B,)
+            # Convert counts to float to avoid integer division
+            counts_per_batch = counts_per_batch.float()
+
+            # Avoid division-by-zero for batches that have no masked tokens:
+            nonzero = counts_per_batch > 0
+            if sum(nonzero).item() == 0:
+                return None
+            loss_sum_per_batch[nonzero] = (
+                loss_sum_per_batch[nonzero] / counts_per_batch[nonzero]
+            )
+            loss_sum_per_batch[nonzero] = (
+                loss_sum_per_batch[nonzero] / mask_ratio_squeezed[nonzero]
+            )
+            # Finally, we take the mean over all individual CE
+            final_loss = loss_sum_per_batch.mean()
 
         optimizer.zero_grad()
-        loss.backward()
+        final_loss.backward()
         optimizer.step()
 
-        return loss.item()
+        return final_loss.item()
 
     @torch.no_grad()
     def sample(
