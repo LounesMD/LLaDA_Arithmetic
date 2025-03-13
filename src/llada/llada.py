@@ -35,7 +35,7 @@ class Llada:
         self.vocab_size = vocab_size
         self.mask_token_id = mask_token_id
         self.device = device
-        self.criterion = nn.CrossEntropyLoss(reduction="sum")
+        self.criterion = nn.CrossEntropyLoss(reduction="none")
 
     def random_mask(self, tokens: torch.Tensor, t: torch.tensor, k: int):
         """
@@ -67,9 +67,8 @@ class Llada:
             masked_tokens
         )  # shape: (seq_len, batch_size, vocab_size)
         _, B, _ = output.size()
-
-        if True:
-            # Unvectorized loss. To use it, change the reduction of the criterion to "sum".
+        if False:
+            # Unvectorized loss. To use it, change the reduction of the criterion to 'sum'.
             final_loss = 0
             cpt = 0
             for i in range(B):
@@ -86,13 +85,17 @@ class Llada:
                 return None
             final_loss /= cpt
         else:
+            output = output.permute(1, 0, 2)
+            mask_positions = mask_positions.permute(1, 0)
+            masked_tokens = masked_tokens.permute(1, 0)
             # Vectorized loss (approx. 4x)
-            # Compute loss.
+            # Compute loss. To use it, change the reduction to 'none'.
             # 1) Get the masked tokens and predictions (loss elements)
             masked_output = output[mask_positions]
-            masked_tokens = tokens[mask_positions]
+            masked_tokens = tokens.T[mask_positions]
+
             # For each masked position, which batch element it belongs to:
-            batch_indices = torch.where(mask_positions)[1]
+            batch_indices = torch.where(mask_positions)[0]
 
             # 2) Compute per-token loss
             per_token_loss = self.criterion(
@@ -106,8 +109,7 @@ class Llada:
             # and mean over batches.
 
             # Number of masked tokens in each batch item
-            counts_per_batch = mask_positions.sum(dim=0)
-
+            counts_per_batch = mask_positions.sum(dim=1)
             # Scatter-add per_token_loss into a length-B tensor that sums losses by batch index.
             # Initialize a (B,) zero Tensor and index_add/scatter_add with batch_indices.
             loss_sum_per_batch = torch.zeros_like(
@@ -123,11 +125,9 @@ class Llada:
             nonzero = counts_per_batch > 0
             if sum(nonzero).item() == 0:
                 return None
-            loss_sum_per_batch[nonzero] = (
-                loss_sum_per_batch[nonzero] / counts_per_batch[nonzero]
-            )
-            loss_sum_per_batch[nonzero] = (
-                loss_sum_per_batch[nonzero] / mask_ratio_squeezed[nonzero]
+
+            loss_sum_per_batch[nonzero] = loss_sum_per_batch[nonzero] / (
+                mask_ratio_squeezed[nonzero]
             )
             # Finally, we take the mean over all individual CE
             final_loss = loss_sum_per_batch.mean()
