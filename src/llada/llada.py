@@ -85,52 +85,9 @@ class Llada:
                 return None
             final_loss /= cpt
         else:
-            output = output.permute(1, 0, 2)
-            mask_positions = mask_positions.permute(1, 0)
-            masked_tokens = masked_tokens.permute(1, 0)
-            # Vectorized loss (approx. 4x)
-            # Compute loss. To use it, change the reduction to 'none'.
-            # 1) Get the masked tokens and predictions (loss elements)
-            masked_output = output[mask_positions]
-            masked_tokens = tokens.T[mask_positions]
-
-            # For each masked position, which batch element it belongs to:
-            batch_indices = torch.where(mask_positions)[0]
-
-            # 2) Compute per-token loss
-            per_token_loss = self.criterion(
-                masked_output,
-                masked_tokens,
-            )
-            # 3) Per-batch mask_ratio weighting
-            # we have two steps:
-            #    - sum up per-token losses for each batch item
-            #    - multiply by 1/mask_ratio[i]
-            # and mean over batches.
-
-            # Number of masked tokens in each batch item
-            counts_per_batch = mask_positions.sum(dim=1)
-            # Scatter-add per_token_loss into a length-B tensor that sums losses by batch index.
-            # Initialize a (B,) zero Tensor and index_add/scatter_add with batch_indices.
-            loss_sum_per_batch = torch.zeros_like(
-                counts_per_batch, dtype=per_token_loss.dtype
-            )
-            loss_sum_per_batch.index_add_(0, batch_indices, per_token_loss)
-            # We'll just be careful about dividing by zero if some item i has no masked tokens.
-            mask_ratio_squeezed = mask_ratio.squeeze(0)  # ensure shape (B,)
-            # Convert counts to float to avoid integer division
-            counts_per_batch = counts_per_batch.float()
-
-            # Avoid division-by-zero for batches that have no masked tokens:
-            nonzero = counts_per_batch > 0
-            if sum(nonzero).item() == 0:
-                return None
-
-            loss_sum_per_batch[nonzero] = loss_sum_per_batch[nonzero] / (
-                mask_ratio_squeezed[nonzero]
-            )
-            # Finally, we take the mean over all individual CE
-            final_loss = loss_sum_per_batch.mean()
+            loss = self.criterion(output.permute(1,2,0),tokens.T)
+            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)/mask_ratio).mean()
+            
 
         optimizer.zero_grad()
         final_loss.backward()
