@@ -85,9 +85,10 @@ class Llada:
                 return None
             final_loss /= cpt
         else:
-            loss = self.criterion(output.permute(1,2,0),tokens.T)
-            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)/mask_ratio).mean()
-            
+            L = tokens.shape[0]
+            loss = self.criterion(output.permute(1,2,0), tokens.T)
+            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*(1/(mask_ratio))).mean()
+
 
         optimizer.zero_grad()
         final_loss.backward()
