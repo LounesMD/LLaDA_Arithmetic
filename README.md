@@ -13,9 +13,15 @@ conda activate llm_project
 
 ### Run the project
 To run train and run LLaDA:
-```python
+```bash
 python src/main.py --number_steps 5 --number_bits 20
 ```
+
+To train the model using Kaggle's GPU, ensure you have a Kaggle account and API key, adapt the `kaggle/kernel-metadata.json` file to your Kaggle username, and run:
+```bash
+kaggle kernels push -p kaggle/
+```
+
 
 ## Acknowledgements
 
