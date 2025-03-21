@@ -1,14 +1,8 @@
-import argparse
-import math
-import random
-
 import torch
-import torch.optim as optim
-
 from llada.llada import Llada
 from llada.utils import TransformerModel
 from tokenizer.tokenizer import character_level_tokenizer
-from utils import train_epoch, evaluate, sample_from_model, parse_arguments
+from utils import sample_from_model, parse_arguments
 from utils import prepare_data, train_and_evaluate
 
 
