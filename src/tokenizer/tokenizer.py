@@ -13,6 +13,9 @@ class naive_tokenizer:
         self.id_to_token = {k : v for k, v in enumerate(self.vocab)}
         self.ntokens = len(self.vocab)
         self.pattern = f"[^{re.escape(''.join(self.vocab))}]"
+        self.pad_token = pad_token
+        self.eos_token = eos_token
+        self.mask_token = mask_token
 
     def clean(self, text):
         """

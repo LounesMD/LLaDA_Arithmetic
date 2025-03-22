@@ -5,14 +5,15 @@ import random
 import torch
 import torch.optim as optim
 
-from llada.llada import Llada
-from llada.utils import TransformerModel
-from tokenizer.tokenizer import character_level_tokenizer
+from method.arm import ARM
+from method.llada import Llada
+from method.utils import TransformerModel
+from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
 from utils import get_batch, sample_datapoint
 
 
 def train_epoch(
-    llada_process,
+    method,
     optimizer,
     data_train,
     tokenizer,
@@ -25,23 +26,20 @@ def train_epoch(
     ### Train the model for one epoch.
     total_loss = 0.0
     for batch, i in enumerate(range(0, len(data_train) - batch_size - 1, batch_size)):
-        prompts, target_answers, _, _ = get_batch(
+        prompts, target_answers, prompt_length, _ = get_batch(
             "train", i, data_train, None, tokenizer, batch_size
         )
         prompts = prompts.to(device)
         target_answers = target_answers.to(device)
 
         input_tensor = torch.cat((prompts, target_answers), 0)
-        llada_process.model.zero_grad()
+        method.model.zero_grad()
 
-        # As many mask ratios as the batch_size
-        mask_ratio = torch.rand((1, input_tensor.size(1))).to(device=device)
-
-        loss = llada_process.train_batch(
+        loss = method.train_batch(
             optimizer=optimizer,
             number_bits=number_bits,
             tokens=input_tensor,
-            mask_ratio=mask_ratio,
+            prompt_length=prompt_length,
         )
         total_loss += loss if loss is not None else 0
 
@@ -55,31 +53,54 @@ def train_epoch(
             total_loss = 0.0
     # return total_loss / (batch + 1)
 
+def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_size,number_bits,seq_len):
+    device = method.device
+    for e in range(num_epochs):
+        method.model.train()
+        train_epoch(
+            method=method,
+            optimizer=optimizer,
+            data_train=data_train,
+            tokenizer=tokenizer,
+            batch_size=batch_size,
+            number_bits=number_bits,
+            step=e,
+            freq=100,
+            device=device,
+        )
 
-def evaluate(llada_process, data_test, batch_size, tokenizer, device):
-    # Turn on evaluation mode disables dropout.
-    correct = 0.0
-    with torch.no_grad():
-        for batch, i in enumerate(range(0, len(data_test) - 1, batch_size)):
-            prompts, target_answers, length_prompts, length_answers = get_batch(
-                "test", i, None, data_test, tokenizer, batch_size
+        method.model.eval()
+        test_accuracy = method.evaluate(data_test, batch_size, tokenizer)
+        print("-" * 89)
+        print(
+            "| end of epoch {:3d} | test accuracy {:5.2f}".format(
+                e + 1, test_accuracy
             )
-            prompts = prompts.to(device)
+        )
+        print("-" * 89)
 
-            target_answers = target_answers.to(device)
+    print("\nSampling from the trained model...")
+    # Generate a few examples:
+    for j in range(5):
+        prompts, target_answers, _, _ = get_batch(
+            "test", j, data_train, data_test, tokenizer, batch_size
+        )
 
-            # TODO: Check why it should be length_answers + 1
-            output = llada_process.sample(
-                input_tokens=prompts, seq_len=length_answers + 1, steps=5
+        sampled_tokens = method.sample(
+            input_tokens=prompts, seq_len=seq_len
+        )
+        for i in range(batch_size):
+            print(
+                "Sampled tokens:",
+                tokenizer.decode(sampled_tokens[:, i].cpu().numpy().tolist()),
             )
+            print(
+                "Target tokens:",
+                tokenizer.decode(target_answers[:, i].cpu().numpy().tolist()),
+            )
+            print()
 
-            answers_tokens = output[length_prompts:, :]
 
-            equality_test = answers_tokens == target_answers.cpu()
-            correct += torch.all(equality_test, axis=0).float().sum()
-
-        accuracy = correct / len(data_test)
-    return accuracy.item()
 
 
 def main():
@@ -95,7 +116,21 @@ def main():
     )
 
     parser.add_argument(
-        "--number_steps",
+        "--method",
+        type=str,
+        default="llada",
+        help="Method between 'llada' and 'arm'.",
+    )
+
+    parser.add_argument(
+        "--tokenizer",
+        type=str,
+        default="naive",
+        help="Tokenizer between 'naive', 'naive_pad' and 'group_pad'.",
+    )
+ 
+    parser.add_argument(
+        "--num_epochs",
         type=int,
         default=5,
         help="Number of training steps.",
@@ -104,7 +139,7 @@ def main():
     parser.add_argument(
         "--device",
         type=str,
-        default="mps",
+        default="cuda",
         help="Device to use",
     )
 
@@ -114,10 +149,9 @@ def main():
     dataset_size = 64_000  # Hardcoded dataset size.
     train_proportion = 0.9
     # Simple tokenizer with 0, ..., 9, "+", "=", "[PAD]", "[EOS]", "[MASK]".
-    vocab_size = None
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
-    num_steps = args.number_steps
+    num_epochs = args.num_epochs
     learning_rate = 5e-4
     device = args.device
 
@@ -128,70 +162,43 @@ def main():
     data_train = data[: int(train_proportion * dataset_size)]
     data_test = data[int(train_proportion * dataset_size) :]
 
-    tokenizer = character_level_tokenizer(args.number_bits)
+    if args.tokenizer == "naive":
+        tokenizer = naive_tokenizer(args.number_bits)
+    elif args.tokenizer == "naive_pad":
+        tokenizer = naive_pad_tokenizer(args.number_bits)
+    elif args.tokenizer == "group_pad":
+        tokenizer = group_pad_tokenizer(args.number_bits)
+    else:
+        raise ValueError("Invalid tokenizer.")
+
+    vocab_size = len(tokenizer.vocab)
+
     model = TransformerModel(
         ntoken=tokenizer.ntokens, ninp=128, nhead=16, nhid=64, device=device, nlayers=8
     ).to(device)
 
     print("Initializing model...")
-    llada_process = Llada(
-        model=model,
-        vocab_size=vocab_size,
-        mask_token_id=tokenizer.token_to_id["[MASK]"],
-        device=device,
-    )
-    optimizer = optim.AdamW(llada_process.model.parameters(), lr=learning_rate)
-
-    print("Training model on toy addition dataset...")
-    llada_process.model.train()
-
-    for step in range(num_steps):
-        llada_process.model.train()
-        train_epoch(
-            llada_process=llada_process,
-            optimizer=optimizer,
-            data_train=data_train,
-            tokenizer=tokenizer,
-            batch_size=batch_size,
-            number_bits=args.number_bits,
-            step=step,
-            freq=100,
+    if args.method == "arm":
+        method = ARM(
+            model=model,
+            vocab_size=vocab_size,
+            mask_token_id=tokenizer.token_to_id["[MASK]"],
             device=device,
         )
-
-        llada_process.model.eval()
-        test_accuracy = evaluate(
-            llada_process, data_test, batch_size, tokenizer, device
+    elif args.method == "llada":
+        method = Llada(
+            model=model,
+            vocab_size=vocab_size,
+            mask_token_id=tokenizer.token_to_id["[MASK]"],
+            device=device,
         )
-        print("-" * 89)
-        print(
-            "| end of epoch {:3d} | test accuracy {:5.2f}".format(
-                step + 1, test_accuracy
-            )
-        )
-        print("-" * 89)
+    else:
+        raise ValueError("Invalid method")
+    optimizer = optim.AdamW(method.model.parameters(), lr=learning_rate)
 
-    print("\nSampling from the trained model...")
-    # Generate a few examples:
-    for j in range(5):
-        prompts, target_answers, _, _ = get_batch(
-            "test", j, data_train, data_test, tokenizer, batch_size
-        )
-
-        sampled_tokens = llada_process.sample(
-            input_tokens=prompts, seq_len=seq_len, steps=5
-        )
-        for i in range(batch_size):
-            print(
-                "Sampled tokens:",
-                tokenizer.decode(sampled_tokens[:, i].numpy().tolist()),
-            )
-            print(
-                "Target tokens:",
-                tokenizer.decode(target_answers[:, i].numpy().tolist()),
-            )
-            print()
-
-
+    print("Training model on toy addition dataset...")
+    train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_size,args.number_bits,seq_len)
+    
+    
 if __name__ == "__main__":
     main()

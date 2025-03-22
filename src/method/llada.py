@@ -8,7 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from llada.utils import add_gumbel_noise, get_num_transfer_tokens
+from method.utils import add_gumbel_noise, get_num_transfer_tokens
+from utils import get_batch
 
 
 class Llada:
@@ -51,13 +52,15 @@ class Llada:
         return masked_tokens, mask_positions
 
     def train_batch(
-        self, optimizer, number_bits: int, tokens: torch.Tensor, mask_ratio: float
+        self, optimizer, number_bits: int, tokens: torch.Tensor, prompt_length = None,
     ):
         """
         Train on a single batch using a specified mask_ratio in [0,1].
         This represents one “step” or iteration of gradient descent.
         Returns the loss value.
         """
+        mask_ratio = torch.clamp(torch.rand((1, tokens.size(1))).to(device=self.device),min=1/(number_bits+1))
+
         tokens = tokens.to(self.device)
         ### /!\ I mask only the result of the operation /!\ ###
         ### Not the best implementation, but it's a start ###
@@ -86,7 +89,8 @@ class Llada:
             final_loss /= cpt
         else:
             loss = self.criterion(output.permute(1,2,0),tokens.T)
-            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)/mask_ratio).mean()
+            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
+            #print(mask_ratio.min(), mask_positions.sum(0).min())
             
 
         optimizer.zero_grad()
@@ -205,3 +209,26 @@ class Llada:
                     transfer_index[select_index, j] = True
                 x[transfer_index] = x0[transfer_index]
         return x.cpu()
+
+    @torch.no_grad()
+    def evaluate(self, data_test, batch_size, tokenizer):
+        # Turn on evaluation mode disables dropout.
+        correct = 0.0
+        for batch, i in enumerate(range(0, len(data_test) - 1, batch_size)):
+            prompts, target_answers, length_prompts, length_answers = get_batch(
+                "test", i, None, data_test, tokenizer, batch_size
+            )
+            prompts = prompts.to(self.device)
+            target_answers = target_answers.to(self.device)
+
+            # TODO: Check why it should be length_answers + 1
+            output = self.sample(
+                input_tokens=prompts, seq_len=length_answers + 1, steps=5
+            )
+
+            answers_tokens = output[length_prompts:, :]
+
+            equality_test = answers_tokens == target_answers.cpu()
+            correct += torch.all(equality_test, axis=0).float().sum()
+        accuracy = correct / len(data_test)
+        return accuracy.item()
