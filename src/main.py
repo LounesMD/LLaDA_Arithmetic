@@ -60,7 +60,7 @@ def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_si
             batch_size=batch_size,
             number_bits=number_bits,
             step=e,
-            freq=1,
+            freq=10,
             device=device,
         )
 
@@ -193,7 +193,7 @@ def main():
     tokenizer = tiktoken.get_encoding('gpt2')
     tokenizer.n_tokens = 50255
 
-    tokens = tokenizer.encode(data[:10000])
+    tokens = tokenizer.encode(data)
     x = torch.tensor(tokens)
     # create batch
     batch_size = 32
