@@ -21,6 +21,8 @@ subprocess.run(
      "--num_epochs", f"{num_epochs}",
      "--number_bits", f"{number_bits}",
      "--device", device,
+     "--method", "llada",
+     "--tokenizer", "gpt2",
     ],
     check=True,
 )

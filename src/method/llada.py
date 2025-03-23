@@ -71,27 +71,9 @@ class Llada:
             masked_tokens
         )  # shape: (seq_len, batch_size, vocab_size)
         _, B, _ = output.size()
-        if False:
-            # Unvectorized loss. To use it, change the reduction of the criterion to 'sum'.
-            final_loss = 0
-            cpt = 0
-            for i in range(B):
-                if sum(mask_positions[:, i]).item() > 0:
-                    final_loss += (
-                        self.criterion(
-                            output[:, i, :][mask_positions[:, i]],
-                            tokens[:, i][mask_positions[:, i]],
-                        )
-                        / mask_ratio.squeeze(0)[i]
-                    )
-                    cpt += 1
-            if cpt == 0:
-                return None
-            final_loss /= cpt
-        else:
-            loss = self.criterion(output.permute(1,2,0),tokens.T)
-            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)).mean()
-            # final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
+        loss = self.criterion(output.permute(1,2,0),tokens.T)
+        final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)).mean()
+        # final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
 
         optimizer.zero_grad()
         final_loss.backward()

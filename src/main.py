@@ -157,10 +157,15 @@ def main():
         tokenizer = naive_pad_tokenizer(args.number_bits)
     elif args.tokenizer == "group_pad":
         tokenizer = group_pad_tokenizer(args.number_bits)
+    elif args.tokenizer == "gpt2":
+        import tiktoken
+
+        tokenizer = tiktoken.get_encoding('gpt2')
+        tokenizer.n_tokens = 50255
     else:
         raise ValueError("Invalid tokenizer.")
 
-    vocab_size = len(tokenizer.vocab)
+    vocab_size = tokenizer.n_vocab
 
     model = TransformerModel(
         ntoken=50255, ninp=128, nhead=16, nhid=64, device=device, nlayers=8
@@ -175,6 +180,7 @@ def main():
             device=device,
         )
     elif args.method == "llada":
+        print(vocab_size)
         method = Llada(
             model=model,
             vocab_size=vocab_size,
@@ -190,19 +196,15 @@ def main():
 
     data = open('input.txt', 'r').read()
 
-    tokenizer = tiktoken.get_encoding('gpt2')
-    tokenizer.n_tokens = 50255
-
-    tokens = tokenizer.encode(data)
+    tokens = tokenizer.encode(data[:100000])
     x = torch.tensor(tokens)
     # create batch
-    batch_size = 32
+    batch_size = 64
     n_batch = len(x) // batch_size
     x = x[:n_batch * batch_size]
     x = x.view(n_batch, batch_size, -1)
     data_train = x[:int(train_proportion * n_batch)]
     data_test = x[int(train_proportion * n_batch):]
-    print("c'est le bon repo")
     train(method,optimizer,
           num_epochs,
           data_train,
