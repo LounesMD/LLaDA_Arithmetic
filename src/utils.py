@@ -1,7 +1,8 @@
 import random
 import argparse
-import torch
-
+from method.arm import ARM
+from method.llada import Llada
+from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
 
 def sample_datapoint(number_bits=3):
     """
@@ -14,33 +15,6 @@ def sample_datapoint(number_bits=3):
     sum_int = a_int + b_int
     return (str(a_int) + "+" + str(b_int) + "=", str(sum_int))
 
-
-def pad(token_list, tokenizer, type_list="prompts"):
-    max_length = max([len(x) for x in token_list])
-    out = []
-    for x in token_list:
-        if type_list == "prompts":
-            out.append(
-                [tokenizer.token_to_id[tokenizer.pad_token]] * (max_length - len(x)) + x
-            )
-        if type_list == "answers":
-            out.append(
-                x
-                + [tokenizer.token_to_id[tokenizer.eos_token]]
-                + [tokenizer.token_to_id[tokenizer.pad_token]] * (max_length - len(x))
-            )
-    return out, max_length
-
-
-def get_batch(split, i, data_train, data_test, tokenizer, batch_size):
-    data = data_train if split == "train" else data_test
-    prompts = [tokenizer.encode(data[i][0]) for i in range(i, i + batch_size)]
-    padded_prompts, length_prompts = pad(prompts, tokenizer, "prompts")
-    answers = [tokenizer.encode(data[i][1]) for i in range(i, i + batch_size)]
-    padded_answers, length_answers = pad(answers, tokenizer, "answers")
-    X = torch.stack([torch.tensor(x) for x in padded_prompts], 1)
-    Y = torch.stack([torch.tensor(x) for x in padded_answers], 1)
-    return X, Y, length_prompts, length_answers
 
 
 def parse_arguments():
@@ -91,6 +65,13 @@ def parse_arguments():
         default=64_000,
         help="Dataset size.")
 
+
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size."
+    )
     return parser.parse_args()
 
 
@@ -101,3 +82,34 @@ def prepare_data(args):
     data_train = data[: int(train_proportion * args.data_size)]
     data_test = data[int(train_proportion * args.data_size):]
     return data_train, data_test
+
+
+def initialize_method(method_name, model, vocab_size, tokenizer, device):
+    """Initialize the method (ARM or Llada) based on the user input."""
+    if method_name == "arm":
+        return ARM(
+            model=model,
+            vocab_size=vocab_size,
+            mask_token_id=tokenizer.token_to_id["[MASK]"],
+            device=device,
+        )
+    elif method_name == "llada":
+        return Llada(
+            model=model,
+            vocab_size=vocab_size,
+            mask_token_id=tokenizer.token_to_id["[MASK]"],
+            device=device,
+        )
+    else:
+        raise ValueError("Invalid method.")
+
+def initialize_tokenizer(tokenizer, number_bits):
+    """Initialize tokenizer based on user input."""
+    if tokenizer == "naive":
+        return naive_tokenizer(number_bits)
+    elif tokenizer == "naive_pad":
+        return naive_pad_tokenizer(number_bits)
+    elif tokenizer == "group_pad":
+        return group_pad_tokenizer(number_bits)
+    else:
+        raise ValueError("Invalid tokenizer.")

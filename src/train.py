@@ -1,6 +1,5 @@
 import torch
-from utils import get_batch
-
+from method.utils import get_batch
 
 
 def train_epoch(

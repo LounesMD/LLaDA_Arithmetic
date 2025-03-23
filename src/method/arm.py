@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from method.utils import add_gumbel_noise, get_num_transfer_tokens
-from utils import get_batch
+from method.utils import get_batch
 
 
 class ARM:
@@ -36,7 +36,7 @@ class ARM:
         self.vocab_size = vocab_size
         self.device = device
         self.criterion = nn.CrossEntropyLoss()
-    
+
     def train_batch(self,optimizer, number_bits,tokens, prompt_length):
         self.model.zero_grad()
         output, _ = self.model(tokens) # (prompt_length + answers_length + 1, batch_size, ntokens)
@@ -79,4 +79,3 @@ class ARM:
             correct += torch.all(equality_test, axis=0).float().sum()
         accuracy = correct / len(data_test)
         return accuracy.item()
-

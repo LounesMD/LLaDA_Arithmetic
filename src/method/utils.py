@@ -114,3 +114,31 @@ def get_num_transfer_tokens(mask_index, steps):
     for i in range(mask_num.size(0)):
         num_transfer_tokens[i, : remainder[i]] += 1
     return num_transfer_tokens.T
+
+
+def pad(token_list, tokenizer, type_list="prompts"):
+    max_length = max([len(x) for x in token_list])
+    out = []
+    for x in token_list:
+        if type_list == "prompts":
+            out.append(
+                [tokenizer.token_to_id[tokenizer.pad_token]] * (max_length - len(x)) + x
+            )
+        if type_list == "answers":
+            out.append(
+                x
+                + [tokenizer.token_to_id[tokenizer.eos_token]]
+                + [tokenizer.token_to_id[tokenizer.pad_token]] * (max_length - len(x))
+            )
+    return out, max_length
+
+
+def get_batch(split, i, data_train, data_test, tokenizer, batch_size):
+    data = data_train if split == "train" else data_test
+    prompts = [tokenizer.encode(data[i][0]) for i in range(i, i + batch_size)]
+    padded_prompts, length_prompts = pad(prompts, tokenizer, "prompts")
+    answers = [tokenizer.encode(data[i][1]) for i in range(i, i + batch_size)]
+    padded_answers, length_answers = pad(answers, tokenizer, "answers")
+    X = torch.stack([torch.tensor(x) for x in padded_prompts], 1)
+    Y = torch.stack([torch.tensor(x) for x in padded_answers], 1)
+    return X, Y, length_prompts, length_answers

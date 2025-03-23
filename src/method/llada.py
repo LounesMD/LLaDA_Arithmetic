@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from method.utils import add_gumbel_noise, get_num_transfer_tokens
-from utils import get_batch
+from method.utils import get_batch
 
 
 class Llada:
@@ -92,7 +92,7 @@ class Llada:
             loss = self.criterion(output.permute(1,2,0),tokens.T)
             final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)).mean()
             # final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
-            
+
         optimizer.zero_grad()
         final_loss.backward()
         optimizer.step()
