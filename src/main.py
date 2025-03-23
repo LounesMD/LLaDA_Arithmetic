@@ -10,6 +10,7 @@ from method.llada import Llada
 from method.utils import TransformerModel
 from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
 from utils import get_batch, sample_datapoint
+import tiktoken
 
 
 def train_epoch(
@@ -158,16 +159,15 @@ def main():
     elif args.tokenizer == "group_pad":
         tokenizer = group_pad_tokenizer(args.number_bits)
     elif args.tokenizer == "gpt2":
-        import tiktoken
         tokenizer = tiktoken.get_encoding('gpt2')
-        tokenizer.n_tokens = 50255
+        tokenizer.n_tokens = 50257
     else:
         raise ValueError("Invalid tokenizer.")
 
     vocab_size = tokenizer.n_vocab
 
     model = TransformerModel(
-        ntoken=50255, ninp=128, nhead=16, nhid=64, device=device, nlayers=8
+        ntoken=50257, ninp=128, nhead=16, nhid=64, device=device, nlayers=8
     ).to(device)
 
     print("Initializing model...")
@@ -191,11 +191,10 @@ def main():
     optimizer = optim.AdamW(method.model.parameters(), lr=learning_rate)
 
     print("Training model on toy addition dataset...")
-    import tiktoken
 
     data = open('input.txt', 'r').read()
 
-    tokens = tokenizer.encode(data)
+    tokens = tokenizer.encode(data[:200000])
     x = torch.tensor(tokens).to(device)
     # create batch
     batch_size = 64
