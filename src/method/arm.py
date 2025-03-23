@@ -8,8 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from method.utils import add_gumbel_noise, get_num_transfer_tokens
-from method.utils import get_batch
+from method.utils import add_gumbel_noise, get_batch, get_num_transfer_tokens
 
 
 class ARM:
@@ -23,6 +22,7 @@ class ARM:
         vocab_size: int,
         mask_token_id: int,
         device: Literal["mps", "cuda", "cpu"] = "cpu",
+        name: str = "ARM",
     ):
         """
         Args:
@@ -36,46 +36,78 @@ class ARM:
         self.vocab_size = vocab_size
         self.device = device
         self.criterion = nn.CrossEntropyLoss()
+        self.name = name
 
-    def train_batch(self,optimizer, number_bits,tokens, prompt_length):
+    def train_batch(self, optimizer, number_bits, tokens, prompt_length):
         self.model.zero_grad()
-        output, _ = self.model(tokens) # (prompt_length + answers_length + 1, batch_size, ntokens)
-        output_answers = output[prompt_length-1:-1,:,:].reshape(-1, self.vocab_size) # ((answers_length + 1) * batch_size, ntokens)
-        target_answers = tokens[prompt_length:,:].reshape(-1) # ((answers_length + 1) * batch_size)
+        output, _ = self.model(
+            tokens
+        )  # (prompt_length + answers_length + 1, batch_size, ntokens)
+        output_answers = output[prompt_length - 1 : -1, :, :].reshape(
+            -1, self.vocab_size
+        )  # ((answers_length + 1) * batch_size, ntokens)
+        target_answers = tokens[prompt_length:, :].reshape(
+            -1
+        )  # ((answers_length + 1) * batch_size)
         loss = self.criterion(output_answers, target_answers)
         loss.backward()
         optimizer.step()
         return loss.item()
 
-
     @torch.no_grad()
-    def sample(self, input_tokens, seq_len = 5, mode = "greedy", num_samples = 1, temperature = 0.8):
-        input_tensor = torch.repeat_interleave(input_tokens, repeats = num_samples, dim = 1).to(self.device)
+    def sample(
+        self, input_tokens, seq_len=5, mode="greedy", num_samples=1, temperature=0.8
+    ):
+        input_tensor = torch.repeat_interleave(
+            input_tokens, repeats=num_samples, dim=1
+        ).to(self.device)
         # (prompt_length, batch_size * num_samples)
         for _ in range(seq_len):
-            output, _ = self.model(input_tensor) # (prompt_length, batch_size * num_samples, ntokens)
-            logits = output[-1,:,:] # (batch_size * num_samples, ntokens)
+            output, _ = self.model(
+                input_tensor
+            )  # (prompt_length, batch_size * num_samples, ntokens)
+            logits = output[-1, :, :]  # (batch_size * num_samples, ntokens)
             if mode == "greedy":
-                tokens = torch.argmax(logits, -1).view((1,-1)) # (1, batch_size * num_samples)
-            else: # mode == "sampling"
+                tokens = torch.argmax(logits, -1).view(
+                    (1, -1)
+                )  # (1, batch_size * num_samples)
+            else:  # mode == "sampling"
                 logits /= temperature
                 probs = torch.softmax(logits, dim=-1)
-                tokens = torch.multinomial(probs, num_samples = 1).view((1,-1)) # (1, batch_size * num_samples)
+                tokens = torch.multinomial(probs, num_samples=1).view(
+                    (1, -1)
+                )  # (1, batch_size * num_samples)
             input_tensor = torch.cat((input_tensor, tokens), 0)
         return input_tensor
 
     @torch.no_grad()
-    def evaluate(self,data_test, batch_size,tokenizer):
+    def evaluate(self, data_test, batch_size, tokenizer):
         # Turn on evaluation mode disables dropout.
         self.model.eval()
-        correct = 0.
+        correct = 0.0
         for batch, i in enumerate(range(0, len(data_test) - 1, batch_size)):
-            prompts, target_answers, prompt_length, answers_length = get_batch("test", i, None, data_test, tokenizer, batch_size)
-            prompts = prompts.to(self.device) # (prompt_length, batch_size)
-            target_answers = target_answers.to(self.device) # (answers_length + 1, batch_size)
-            output = self.sample(prompts, answers_length + 1) # (prompt_length + answers_length + 1, batch_size)
-            answers_tokens = output[prompt_length:, :] # (answers_length + 1, batch_size), contains tokens
-            equality_test = answers_tokens == target_answers # (answers_length + 1, batch_size), contains boolean values
+            prompts, target_answers, prompt_length, answers_length = get_batch(
+                "test", i, None, data_test, tokenizer, batch_size
+            )
+            prompts = prompts.to(self.device)  # (prompt_length, batch_size)
+            target_answers = target_answers.to(
+                self.device
+            )  # (answers_length + 1, batch_size)
+            output = self.sample(
+                prompts, answers_length + 1
+            )  # (prompt_length + answers_length + 1, batch_size)
+            answers_tokens = output[
+                prompt_length:, :
+            ]  # (answers_length + 1, batch_size), contains tokens
+            equality_test = (
+                answers_tokens == target_answers
+            )  # (answers_length + 1, batch_size), contains boolean values
             correct += torch.all(equality_test, axis=0).float().sum()
         accuracy = correct / len(data_test)
         return accuracy.item()
+
+    def save(self, path):
+        torch.save(self.model.state_dict(), path)
+
+    def load(self, path):
+        self.model.load_state_dict(torch.load(path))
