@@ -202,6 +202,7 @@ def main():
     x = x.view(n_batch, batch_size, -1)
     data_train = x[:int(train_proportion * n_batch)]
     data_test = x[int(train_proportion * n_batch):]
+    print("c'est le bon repo")
     train(method,optimizer,
           num_epochs,
           data_train,
