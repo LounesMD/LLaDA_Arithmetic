@@ -1,6 +1,6 @@
 {
-  "id": "christophermarouani/train_llada",
-  "title": "Train LLaDA",
+  "id": "christophermarouani/train-llada",
+  "title": "train-llada",
   "code_file": "main.py",
   "language": "python",
   "kernel_type": "script",
