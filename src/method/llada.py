@@ -22,6 +22,7 @@ class Llada:
         vocab_size: int,
         mask_token_id: int,
         device: Literal["mps", "cuda", "cpu"] = "cpu",
+        name: str = "Llada",
     ):
         """
         Args:
@@ -29,13 +30,13 @@ class Llada:
             vocab_size: Size of the vocabulary (used in cross-entropy).
             mask_token_id: ID for the [MASK] token in the vocabulary.
             device: ["cuda", "mps", "cpu"].
-
         """
         self.model = model  # .to(device)
         self.vocab_size = vocab_size
         self.mask_token_id = mask_token_id
         self.device = device
         self.criterion = nn.CrossEntropyLoss(reduction="none")
+        self.name = name
 
     def random_mask(self, tokens: torch.Tensor, t: torch.tensor, k: int):
         """
@@ -51,7 +52,11 @@ class Llada:
         return masked_tokens, mask_positions
 
     def train_batch(
-        self, optimizer, number_bits: int, tokens: torch.Tensor, prompt_length = None,
+        self,
+        optimizer,
+        number_bits: int,
+        tokens: torch.Tensor,
+        prompt_length=None,
     ):
         """
         Train on a single batch using a specified mask_ratio in [0,1].
@@ -88,8 +93,8 @@ class Llada:
                 return None
             final_loss /= cpt
         else:
-            loss = self.criterion(output.permute(1,2,0),tokens.T)
-            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)).mean()
+            loss = self.criterion(output.permute(1, 2, 0), tokens.T)
+            final_loss = ((loss * mask_positions.permute(1, 0)).sum(dim=1)).mean()
             # final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
 
         optimizer.zero_grad()
@@ -233,3 +238,9 @@ class Llada:
             correct += torch.all(equality_test, axis=0).float().sum()
         accuracy = correct / len(test_loader)
         return accuracy.item()
+
+    def save(self, path):
+        torch.save(self.model.state_dict(), path)
+
+    def load(self, path):
+        self.model.load_state_dict(torch.load(path))

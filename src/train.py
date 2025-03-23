@@ -1,3 +1,5 @@
+import os
+
 import torch
 
 
@@ -41,6 +43,11 @@ def train_epoch(
 def train(method,optimizer,num_epochs, train_loader, test_loader, tokenizer,batch_size,number_bits):
     device = method.device
     seq_len = 2 * number_bits + 1
+
+    best_acc = 0
+    save_dir = "./weights"
+    os.makedirs(save_dir, exist_ok=True)
+
     for e in range(num_epochs):
         method.model.train()
         train_epoch(
@@ -59,11 +66,17 @@ def train(method,optimizer,num_epochs, train_loader, test_loader, tokenizer,batc
         test_accuracy = method.evaluate(test_loader, batch_size, tokenizer)
         print("-" * 89)
         print(
-            "| end of epoch {:3d} | test accuracy {:5.2f}".format(
-                e + 1, test_accuracy
-            )
+            "| end of epoch {:3d} | test accuracy {:5.2f}".format(e + 1, test_accuracy)
         )
         print("-" * 89)
+        # Save the model if it has a better accuracy than the previous best.
+        if test_accuracy > best_acc:
+            best_acc = test_accuracy
+            save_path = os.path.join(save_dir, "{}_best.pth".format(method.name))
+            method.save(save_path)
+        # Save a copy of the latest model.
+        save_path = os.path.join(save_dir, "{}_last.pth".format(method.name))
+        method.save(save_path)
 
     print("\nSampling from the trained model...")
     # Generate a few examples:
@@ -72,9 +85,7 @@ def train(method,optimizer,num_epochs, train_loader, test_loader, tokenizer,batc
             "test", j, train_loader, test_loader, tokenizer, batch_size
         )
 
-        sampled_tokens = method.sample(
-            input_tokens=prompts, seq_len=seq_len
-        )
+        sampled_tokens = method.sample(input_tokens=prompts, seq_len=seq_len)
         for i in range(batch_size):
             print(
                 "Sampled tokens:",
