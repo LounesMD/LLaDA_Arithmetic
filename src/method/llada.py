@@ -59,12 +59,13 @@ class Llada:
         This represents one “step” or iteration of gradient descent.
         Returns the loss value.
         """
-        mask_ratio = torch.clamp(torch.rand((1, tokens.size(1))).to(device=self.device),min=1/(number_bits+1))
+        mask_ratio = torch.rand((1, tokens.size(1))).to(device=self.device)
+        # mask_ratio = torch.clamp(torch.rand((1, tokens.size(1))).to(device=self.device),min=1/(number_bits+1))
 
         tokens = tokens.to(self.device)
         ### /!\ I mask only the result of the operation /!\ ###
         ### Not the best implementation, but it's a start ###
-        k = 2 * number_bits + 2  # Index of the equal sign
+        k = 2 * number_bits + 1  # Index of the equal sign
         masked_tokens, mask_positions = self.random_mask(tokens, mask_ratio, k)
         output, _ = self.model(
             masked_tokens
@@ -89,10 +90,9 @@ class Llada:
             final_loss /= cpt
         else:
             loss = self.criterion(output.permute(1,2,0),tokens.T)
-            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
-            #print(mask_ratio.min(), mask_positions.sum(0).min())
+            final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)).mean()
+            # final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
             
-
         optimizer.zero_grad()
         final_loss.backward()
         optimizer.step()
