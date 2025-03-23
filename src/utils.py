@@ -3,6 +3,8 @@ import argparse
 from method.arm import ARM
 from method.llada import Llada
 from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
+import torch
+from data import AdditionDataset
 
 def sample_datapoint(number_bits=3):
     """
@@ -15,7 +17,13 @@ def sample_datapoint(number_bits=3):
     sum_int = a_int + b_int
     return (str(a_int) + "+" + str(b_int) + "=", str(sum_int))
 
+def prepare_data(args, tokenizer):
+    """Prepare the training and testing datasets."""
+    data = [sample_datapoint(args.number_bits) for _ in range(args.data_size)]
+    X, Y, length_prompts, length_answers = process_data(data, tokenizer)
 
+    dataset = AdditionDataset(X, Y, length_prompts, length_answers)
+    return dataset
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -75,15 +83,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def prepare_data(args):
-    """Prepare the training and testing datasets."""
-    data = [sample_datapoint(args.number_bits) for _ in range(args.data_size)]
-    train_proportion = 0.9
-    data_train = data[: int(train_proportion * args.data_size)]
-    data_test = data[int(train_proportion * args.data_size):]
-    return data_train, data_test
-
-
 def initialize_method(method_name, model, vocab_size, tokenizer, device):
     """Initialize the method (ARM or Llada) based on the user input."""
     if method_name == "arm":
@@ -113,3 +112,31 @@ def initialize_tokenizer(tokenizer, number_bits):
         return group_pad_tokenizer(number_bits)
     else:
         raise ValueError("Invalid tokenizer.")
+
+
+def pad(token_list, tokenizer, type_list="prompts"):
+    max_length = max([len(x) for x in token_list])
+    out = []
+    for x in token_list:
+        if type_list == "prompts":
+            out.append(
+                [tokenizer.token_to_id[tokenizer.pad_token]] * (max_length - len(x)) + x
+            )
+        if type_list == "answers":
+            out.append(
+                x
+                + [tokenizer.token_to_id[tokenizer.eos_token]]
+                + [tokenizer.token_to_id[tokenizer.pad_token]] * (max_length - len(x))
+            )
+    return out, max_length
+
+
+def process_data(data, tokenizer):
+    data = data
+    prompts = [tokenizer.encode(data[i][0]) for i in range(len(data))]
+    padded_prompts, length_prompts = pad(prompts, tokenizer, "prompts")
+    answers = [tokenizer.encode(data[i][1]) for i in range(len(data))]
+    padded_answers, length_answers = pad(answers, tokenizer, "answers")
+    X = torch.stack([torch.tensor(x) for x in padded_prompts], 1)
+    Y = torch.stack([torch.tensor(x) for x in padded_answers], 1)
+    return X.permute(1,0), Y.permute(1,0), length_prompts, length_answers

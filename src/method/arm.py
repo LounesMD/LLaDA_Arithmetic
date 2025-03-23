@@ -9,7 +9,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from method.utils import add_gumbel_noise, get_num_transfer_tokens
-from method.utils import get_batch
 
 
 class ARM:
@@ -65,17 +64,21 @@ class ARM:
         return input_tensor
 
     @torch.no_grad()
-    def evaluate(self,data_test, batch_size,tokenizer):
+    def evaluate(self,test_loader, batch_size,tokenizer):
         # Turn on evaluation mode disables dropout.
         self.model.eval()
         correct = 0.
-        for batch, i in enumerate(range(0, len(data_test) - 1, batch_size)):
-            prompts, target_answers, prompt_length, answers_length = get_batch("test", i, None, data_test, tokenizer, batch_size)
-            prompts = prompts.to(self.device) # (prompt_length, batch_size)
-            target_answers = target_answers.to(self.device) # (answers_length + 1, batch_size)
-            output = self.sample(prompts, answers_length + 1) # (prompt_length + answers_length + 1, batch_size)
+        for batch, (prompts, target_answers, prompt_length, length_answers) in enumerate(test_loader):
+            prompts = prompts.to(self.device).permute(1, 0) # (prompt_length, batch_size)
+            target_answers = target_answers.to(self.device).permute(1, 0) # (answers_length + 1, batch_size)
+
+            # TODO: Improve this hardcode part
+            length_answers = length_answers[0]
+            prompt_length = prompt_length[0]
+
+            output = self.sample(prompts, length_answers + 1) # (prompt_length + answers_length + 1, batch_size)
             answers_tokens = output[prompt_length:, :] # (answers_length + 1, batch_size), contains tokens
             equality_test = answers_tokens == target_answers # (answers_length + 1, batch_size), contains boolean values
             correct += torch.all(equality_test, axis=0).float().sum()
-        accuracy = correct / len(data_test)
+        accuracy = correct / len(test_loader)
         return accuracy.item()

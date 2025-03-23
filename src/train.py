@@ -1,11 +1,10 @@
 import torch
-from method.utils import get_batch
 
 
 def train_epoch(
     method,
     optimizer,
-    data_train,
+    train_loader,
     tokenizer,
     batch_size,
     number_bits,
@@ -15,13 +14,9 @@ def train_epoch(
 ):
     ### Train the model for one epoch.
     total_loss = 0.0
-    for batch, i in enumerate(range(0, len(data_train) - batch_size - 1, batch_size)):
-        prompts, target_answers, prompt_length, _ = get_batch(
-            "train", i, data_train, None, tokenizer, batch_size
-        )
-        prompts = prompts.to(device)
-        target_answers = target_answers.to(device)
-
+    for batch, (prompts, target_answers, prompt_length, _) in enumerate(train_loader):
+        prompts = prompts.to(device).permute(1, 0)
+        target_answers = target_answers.to(device).permute(1, 0)
         input_tensor = torch.cat((prompts, target_answers), 0)
         method.model.zero_grad()
 
@@ -37,13 +32,13 @@ def train_epoch(
             cur_loss = total_loss / freq
             print(
                 "| {:5d}/{:5d} batches | loss {:5.2f}".format(
-                    batch, len(data_train) // batch_size, cur_loss
+                    batch, len(train_loader.dataset) // batch_size, cur_loss
                 )
             )
             total_loss = 0.0
     # return total_loss / (batch + 1)
 
-def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_size,number_bits):
+def train(method,optimizer,num_epochs, train_loader, test_loader, tokenizer,batch_size,number_bits):
     device = method.device
     seq_len = 2 * number_bits + 1
     for e in range(num_epochs):
@@ -51,7 +46,7 @@ def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_si
         train_epoch(
             method=method,
             optimizer=optimizer,
-            data_train=data_train,
+            train_loader=train_loader,
             tokenizer=tokenizer,
             batch_size=batch_size,
             number_bits=number_bits,
@@ -61,7 +56,7 @@ def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_si
         )
 
         method.model.eval()
-        test_accuracy = method.evaluate(data_test, batch_size, tokenizer)
+        test_accuracy = method.evaluate(test_loader, batch_size, tokenizer)
         print("-" * 89)
         print(
             "| end of epoch {:3d} | test accuracy {:5.2f}".format(
@@ -74,7 +69,7 @@ def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_si
     # Generate a few examples:
     for j in range(5):
         prompts, target_answers, _, _ = get_batch(
-            "test", j, data_train, data_test, tokenizer, batch_size
+            "test", j, train_loader, test_loader, tokenizer, batch_size
         )
 
         sampled_tokens = method.sample(

@@ -3,16 +3,25 @@ import torch.optim as optim
 from method.utils import TransformerModel
 from utils import parse_arguments, prepare_data, initialize_method, initialize_tokenizer
 from train import train
+from utils import process_data
+from data import AdditionDataset
+from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 
 def main():
     # Parse arguments
     args = parse_arguments()
 
-    # Prepare training and test data
-    data_train, data_test = prepare_data(args)
-
     # Initialize tokenizer
     tokenizer = initialize_tokenizer(args.tokenizer, args.number_bits)
+
+    # Prepare data
+    dataset = prepare_data(args, tokenizer)
+
+    # Split data into training and testing sets
+    train_data, test_data = train_test_split(dataset, test_size=0.2)
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
     # Initialize model
     model = TransformerModel(
@@ -29,7 +38,7 @@ def main():
 
     # Train the model
     print("Training model on toy addition dataset...")
-    train(method, optimizer, args.num_epochs, data_train, data_test, tokenizer, args.batch_size, args.number_bits)
+    train(method, optimizer, args.num_epochs, train_loader, test_loader, tokenizer, args.batch_size, args.number_bits)
 
 
 if __name__ == "__main__":
