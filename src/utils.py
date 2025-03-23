@@ -85,4 +85,19 @@ def parse_arguments():
         help="Device to use"
     )
 
+    parser.add_argument(
+        "--data_size",
+        type=int,
+        default=64_000,
+        help="Dataset size.")
+
     return parser.parse_args()
+
+
+def prepare_data(args):
+    """Prepare the training and testing datasets."""
+    data = [sample_datapoint(args.number_bits) for _ in range(args.data_size)]
+    train_proportion = 0.9
+    data_train = data[: int(train_proportion * args.data_size)]
+    data_test = data[int(train_proportion * args.data_size):]
+    return data_train, data_test

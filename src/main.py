@@ -9,9 +9,8 @@ from method.arm import ARM
 from method.llada import Llada
 from method.utils import TransformerModel
 from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
-from utils import sample_datapoint
+from utils import parse_arguments, prepare_data
 from train import train
-from utils import parse_arguments
 
 
 def main():
@@ -26,22 +25,14 @@ def main():
     else:
         raise ValueError("Invalid tokenizer.")
 
-    ### Fixed hyperparameters:
-    dataset_size = 64_000  # Hardcoded dataset size.
-    train_proportion = 0.9
-    # Simple tokenizer with 0, ..., 9, "+", "=", "[PAD]", "[EOS]", "[MASK]".
-    seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
-    batch_size = 32
+    device = torch.device(args.device)
+    learning_rate = 1e-4
     num_epochs = args.num_epochs
-    learning_rate = 5e-4
-    device = args.device
+    batch_size = 32
+    seq_len = 2 * args.number_bits + 1
 
-    data = []
-    for i in range(dataset_size):
-        data.append(sample_datapoint(args.number_bits))
-
-    data_train = data[: int(train_proportion * dataset_size)]
-    data_test = data[int(train_proportion * dataset_size) :]
+    # Prepare data
+    data_train, data_test = prepare_data(args)
 
 
     vocab_size = len(tokenizer.vocab)
@@ -70,7 +61,7 @@ def main():
     optimizer = optim.AdamW(method.model.parameters(), lr=learning_rate)
 
     print("Training model on toy addition dataset...")
-    train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_size,args.number_bits,seq_len)
+    train(method,optimizer, num_epochs, data_train, data_test, tokenizer,batch_size,args.number_bits,seq_len)
 
 
 if __name__ == "__main__":
