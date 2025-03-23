@@ -5,12 +5,17 @@ class naive_tokenizer:
     """
     character-level
     """
+
     def __init__(
         self, number_bits, pad_token="[PAD]", eos_token="[EOS]", mask_token="[MASK]"
     ):
-        self.vocab = [str(x) for x in range(10)] + ["+", "="] + [pad_token, eos_token, mask_token]
-        self.token_to_id = {v : k for k, v in enumerate(self.vocab)}
-        self.id_to_token = {k : v for k, v in enumerate(self.vocab)}
+        self.vocab = (
+            [str(x) for x in range(10)]
+            + ["+", "="]
+            + [pad_token, eos_token, mask_token]
+        )
+        self.token_to_id = {v: k for k, v in enumerate(self.vocab)}
+        self.id_to_token = {k: v for k, v in enumerate(self.vocab)}
         self.ntokens = len(self.vocab)
         self.pattern = f"[^{re.escape(''.join(self.vocab))}]"
         self.pad_token = pad_token
@@ -129,6 +134,7 @@ class group_pad_tokenizer:
     """
     character-level
     """
+
     def __init__(
         self, number_bits, pad_token="[PAD]", eos_token="[EOS]", mask_token="[MASK]"
     ):

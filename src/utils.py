@@ -1,8 +1,14 @@
-import random
 import argparse
+import random
+
 from method.arm import ARM
 from method.llada import Llada
-from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
+from tokenizer.tokenizer import (
+    group_pad_tokenizer,
+    naive_pad_tokenizer,
+    naive_tokenizer,
+)
+
 
 def sample_datapoint(number_bits=3):
     """
@@ -16,7 +22,6 @@ def sample_datapoint(number_bits=3):
     return (str(a_int) + "+" + str(b_int) + "=", str(sum_int))
 
 
-
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="A script to train and evaluate a LLaDA-style model."
@@ -26,7 +31,7 @@ def parse_arguments():
         "--number_bits",
         type=int,
         default=15,
-        help="Number of bits for the addition dataset. If `number_bits` is n, the numbers a and b will each have at most n bits."
+        help="Number of bits for the addition dataset. If `number_bits` is n, the numbers a and b will each have at most n bits.",
     )
 
     parser.add_argument(
@@ -34,7 +39,7 @@ def parse_arguments():
         type=str,
         default="llada",
         choices=["llada", "arm"],
-        help="Method between 'llada' and 'arm'."
+        help="Method between 'llada' and 'arm'.",
     )
 
     parser.add_argument(
@@ -42,36 +47,18 @@ def parse_arguments():
         type=str,
         default="naive",
         choices=["naive", "naive_pad", "group_pad"],
-        help="Tokenizer between 'naive', 'naive_pad' and 'group_pad'."
+        help="Tokenizer between 'naive', 'naive_pad' and 'group_pad'.",
     )
 
     parser.add_argument(
-        "--num_epochs",
-        type=int,
-        default=5,
-        help="Number of training steps."
+        "--num_epochs", type=int, default=5, help="Number of training steps."
     )
 
-    parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="Device to use"
-    )
+    parser.add_argument("--device", type=str, default="cuda", help="Device to use")
 
-    parser.add_argument(
-        "--data_size",
-        type=int,
-        default=64_000,
-        help="Dataset size.")
+    parser.add_argument("--data_size", type=int, default=64_000, help="Dataset size.")
 
-
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=32,
-        help="Batch size."
-    )
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
     return parser.parse_args()
 
 
@@ -80,7 +67,7 @@ def prepare_data(args):
     data = [sample_datapoint(args.number_bits) for _ in range(args.data_size)]
     train_proportion = 0.9
     data_train = data[: int(train_proportion * args.data_size)]
-    data_test = data[int(train_proportion * args.data_size):]
+    data_test = data[int(train_proportion * args.data_size) :]
     return data_train, data_test
 
 
@@ -102,6 +89,7 @@ def initialize_method(method_name, model, vocab_size, tokenizer, device):
         )
     else:
         raise ValueError("Invalid method.")
+
 
 def initialize_tokenizer(tokenizer, number_bits):
     """Initialize tokenizer based on user input."""
