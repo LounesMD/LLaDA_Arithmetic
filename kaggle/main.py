@@ -2,11 +2,12 @@ import subprocess
 import os
 
 
-# Clone the repository
+# Clone a specific branch of the repository
 subprocess.run(
-    ["git", "clone", "https://github.com/LounesMD/LLaDA_Arithmetic.git"],
+    ["git", "clone", "--branch", "your-branch-name", "--single-branch", "https://github.com/LounesMD/LLaDA_Arithmetic.git"],
     check=True,
 )
+
 os.chdir("LLaDA_Arithmetic")
 
 # Define hyperparameters

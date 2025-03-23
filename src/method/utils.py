@@ -55,6 +55,7 @@ class TransformerModel(nn.Transformer):
         self.pos_encoder = PositionalEmbedding(ninp, dropout)
         self.decoder = nn.Linear(ninp, ntoken)
         self.device = device
+        self.ntoken = ntoken
 
         self.ninp = ninp
         self.init_weights()

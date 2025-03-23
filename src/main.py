@@ -25,21 +25,16 @@ def train_epoch(
 ):
     ### Train the model for one epoch.
     total_loss = 0.0
-    for batch, i in enumerate(range(0, len(data_train) - batch_size - 1, batch_size)):
-        prompts, target_answers, prompt_length, _ = get_batch(
-            "train", i, data_train, None, tokenizer, batch_size
-        )
-        prompts = prompts.to(device)
-        target_answers = target_answers.to(device)
+    for batch in range(data_train.shape[0]):
 
-        input_tensor = torch.cat((prompts, target_answers), 0)
         method.model.zero_grad()
 
+        input_tensor = data_train[batch]
         loss = method.train_batch(
             optimizer=optimizer,
             number_bits=number_bits,
             tokens=input_tensor,
-            prompt_length=prompt_length,
+            prompt_length=input_tensor.shape[0],
         )
         total_loss += loss if loss is not None else 0
 
@@ -47,7 +42,7 @@ def train_epoch(
             cur_loss = total_loss / freq
             print(
                 "| {:5d}/{:5d} batches | loss {:5.2f}".format(
-                    batch, len(data_train) // batch_size, cur_loss
+                    batch, data_train.shape[0], cur_loss
                 )
             )
             total_loss = 0.0
@@ -65,12 +60,13 @@ def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_si
             batch_size=batch_size,
             number_bits=number_bits,
             step=e,
-            freq=100,
+            freq=1,
             device=device,
         )
 
         method.model.eval()
-        test_accuracy = method.evaluate(data_test, batch_size, tokenizer)
+        #test_accuracy = method.evaluate(data_test, batch_size, tokenizer)
+        test_accuracy = 0
         print("-" * 89)
         print(
             "| end of epoch {:3d} | test accuracy {:5.2f}".format(
@@ -81,24 +77,17 @@ def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_si
 
     print("\nSampling from the trained model...")
     # Generate a few examples:
-    for j in range(5):
-        prompts, target_answers, _, _ = get_batch(
-            "test", j, data_train, data_test, tokenizer, batch_size
-        )
-
+    for j in range(2):
+        input_tokens = data_test[j]
+        seq_len = input_tokens.shape[0]
         sampled_tokens = method.sample(
-            input_tokens=prompts, seq_len=seq_len
+            input_tokens=input_tokens, seq_len=seq_len
+        ).squeeze(1)
+
+        print(
+            "Sampled tokens:",
+            tokenizer.decode(sampled_tokens.cpu().numpy().tolist()),
         )
-        for i in range(batch_size):
-            print(
-                "Sampled tokens:",
-                tokenizer.decode(sampled_tokens[:, i].cpu().numpy().tolist()),
-            )
-            print(
-                "Target tokens:",
-                tokenizer.decode(target_answers[:, i].cpu().numpy().tolist()),
-            )
-            print()
 
 
 
@@ -128,7 +117,7 @@ def main():
         default="naive",
         help="Tokenizer between 'naive', 'naive_pad' and 'group_pad'.",
     )
- 
+
     parser.add_argument(
         "--num_epochs",
         type=int,
@@ -152,15 +141,15 @@ def main():
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
     num_epochs = args.num_epochs
-    learning_rate = 5e-4
+    learning_rate = 1e-4
     device = args.device
 
     data = []
     for i in range(dataset_size):
         data.append(sample_datapoint(args.number_bits))
 
-    data_train = data[: int(train_proportion * dataset_size)]
-    data_test = data[int(train_proportion * dataset_size) :]
+    data_train = data[:int(train_proportion * dataset_size)]
+    data_test = data[int(train_proportion * dataset_size):]
 
     if args.tokenizer == "naive":
         tokenizer = naive_tokenizer(args.number_bits)
@@ -174,7 +163,7 @@ def main():
     vocab_size = len(tokenizer.vocab)
 
     model = TransformerModel(
-        ntoken=tokenizer.ntokens, ninp=128, nhead=16, nhid=64, device=device, nlayers=8
+        ntoken=50255, ninp=128, nhead=16, nhid=64, device=device, nlayers=8
     ).to(device)
 
     print("Initializing model...")
@@ -189,7 +178,7 @@ def main():
         method = Llada(
             model=model,
             vocab_size=vocab_size,
-            mask_token_id=tokenizer.token_to_id["[MASK]"],
+            mask_token_id=2,
             device=device,
         )
     else:
@@ -197,8 +186,31 @@ def main():
     optimizer = optim.AdamW(method.model.parameters(), lr=learning_rate)
 
     print("Training model on toy addition dataset...")
-    train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_size,args.number_bits,seq_len)
-    
-    
+    import tiktoken
+
+    data = open('input.txt', 'r').read()
+
+    tokenizer = tiktoken.get_encoding('gpt2')
+    tokenizer.n_tokens = 50255
+
+    tokens = tokenizer.encode(data[:10000])
+    x = torch.tensor(tokens)
+    # create batch
+    batch_size = 32
+    n_batch = len(x) // batch_size
+    x = x[:n_batch * batch_size]
+    x = x.view(n_batch, batch_size, -1)
+    data_train = x[:int(train_proportion * n_batch)]
+    data_test = x[int(train_proportion * n_batch):]
+    train(method,optimizer,
+          num_epochs,
+          data_train,
+          data_test,
+          tokenizer,
+          batch_size,
+          args.number_bits,
+          seq_len)
+
+
 if __name__ == "__main__":
     main()
