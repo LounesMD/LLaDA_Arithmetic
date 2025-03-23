@@ -195,7 +195,7 @@ def main():
 
     data = open('input.txt', 'r').read()
 
-    tokens = tokenizer.encode(data_train)
+    tokens = tokenizer.encode(data)
     x = torch.tensor(tokens)
     # create batch
     batch_size = 64
