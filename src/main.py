@@ -159,7 +159,6 @@ def main():
         tokenizer = group_pad_tokenizer(args.number_bits)
     elif args.tokenizer == "gpt2":
         import tiktoken
-
         tokenizer = tiktoken.get_encoding('gpt2')
         tokenizer.n_tokens = 50255
     else:
@@ -196,7 +195,7 @@ def main():
 
     data = open('input.txt', 'r').read()
 
-    tokens = tokenizer.encode(data[:100000])
+    tokens = tokenizer.encode(data_train)
     x = torch.tensor(tokens)
     # create batch
     batch_size = 64
