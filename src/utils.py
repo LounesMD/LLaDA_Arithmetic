@@ -1,5 +1,5 @@
 import random
-
+import argparse
 import torch
 
 
@@ -41,3 +41,48 @@ def get_batch(split, i, data_train, data_test, tokenizer, batch_size):
     X = torch.stack([torch.tensor(x) for x in padded_prompts], 1)
     Y = torch.stack([torch.tensor(x) for x in padded_answers], 1)
     return X, Y, length_prompts, length_answers
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="A script to train and evaluate a LLaDA-style model."
+    )
+
+    parser.add_argument(
+        "--number_bits",
+        type=int,
+        default=15,
+        help="Number of bits for the addition dataset. If `number_bits` is n, the numbers a and b will each have at most n bits."
+    )
+
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="llada",
+        choices=["llada", "arm"],
+        help="Method between 'llada' and 'arm'."
+    )
+
+    parser.add_argument(
+        "--tokenizer",
+        type=str,
+        default="naive",
+        choices=["naive", "naive_pad", "group_pad"],
+        help="Tokenizer between 'naive', 'naive_pad' and 'group_pad'."
+    )
+
+    parser.add_argument(
+        "--num_epochs",
+        type=int,
+        default=5,
+        help="Number of training steps."
+    )
+
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="Device to use"
+    )
+
+    return parser.parse_args()
