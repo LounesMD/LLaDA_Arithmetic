@@ -1,4 +1,3 @@
-import torch
 import torch.optim as optim
 
 from method.utils import TransformerModel
@@ -15,18 +14,14 @@ def main():
     # Initialize tokenizer
     tokenizer = initialize_tokenizer(args.tokenizer, args.number_bits)
 
-    # Set device and training parameters
-    device = torch.device(args.device)
-    seq_len = 2 * args.number_bits + 1
-
     # Initialize model
     model = TransformerModel(
-        ntoken=tokenizer.ntokens, ninp=128, nhead=16, nhid=64, device=device, nlayers=8
-    ).to(device)
+        ntoken=tokenizer.ntokens, ninp=128, nhead=16, nhid=64, device=args.device, nlayers=8
+    ).to(args.device)
 
     # Initialize method (ARM or Llada)
     print("Initializing model...")
-    method = initialize_method(args.method, model, len(tokenizer.vocab), tokenizer, device)
+    method = initialize_method(args.method, model, len(tokenizer.vocab), tokenizer, args.device)
 
     # Set up optimizer
     learning_rate = 1e-4
@@ -34,7 +29,7 @@ def main():
 
     # Train the model
     print("Training model on toy addition dataset...")
-    train(method, optimizer, args.num_epochs, data_train, data_test, tokenizer, args.batch_size, args.number_bits, seq_len)
+    train(method, optimizer, args.num_epochs, data_train, data_test, tokenizer, args.batch_size, args.number_bits)
 
 
 if __name__ == "__main__":

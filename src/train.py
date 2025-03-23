@@ -43,8 +43,9 @@ def train_epoch(
             total_loss = 0.0
     # return total_loss / (batch + 1)
 
-def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_size,number_bits,seq_len):
+def train(method,optimizer,num_epochs, data_train, data_test, tokenizer,batch_size,number_bits):
     device = method.device
+    seq_len = 2 * number_bits + 1
     for e in range(num_epochs):
         method.model.train()
         train_epoch(
