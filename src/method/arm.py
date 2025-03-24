@@ -90,7 +90,7 @@ class ARM:
             prompts = prompts.to(self.device).permute(1, 0) # (prompt_length, batch_size)
             target_answers = target_answers.to(self.device).permute(1, 0) # (answers_length + 1, batch_size)
 
-            # TODO: Improve this hardcode part
+            # TODO: Improve this hardcoded part
             length_answers = length_answers[0]
             prompt_length = prompt_length[0]
 
@@ -100,7 +100,7 @@ class ARM:
             correct += torch.all(equality_test, axis=0).float().sum()
         print('answer_tokens', answers_tokens[0])
         print('target_answers', target_answers[0])
-        accuracy = correct / len(test_loader)
+        accuracy = correct / len(test_loader.dataset)
         return accuracy.item()
 
     def save(self, path):
