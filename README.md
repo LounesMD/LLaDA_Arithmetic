@@ -1,4 +1,4 @@
-# LLaDA: From Text to Arithmetic Generation
+# LLaDA: From Text Generation to Arithmetic Operations
 
 In this repository, we provide a complete implementation of the training and inference pipeline for [LLaDA](https://arxiv.org/pdf/2502.09992), applied to arithmetic operations and sorting tasks.
 <p align="center">
