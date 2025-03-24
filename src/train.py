@@ -1,20 +1,29 @@
 import os
+from typing import List, Union
 
 import torch
+from torch.optim import Optimizer
 
+from method.arm import ARM
+from method.llada import Llada
 from method.utils import get_batch
+from tokenizer.tokenizer import (
+    group_pad_tokenizer,
+    naive_pad_tokenizer,
+    naive_tokenizer,
+)
 
 
 def train_epoch(
-    method,
-    optimizer,
-    data_train,
-    tokenizer,
-    batch_size,
-    number_bits,
-    step,
-    freq,
-    device,
+    method: Union[Llada, ARM],
+    optimizer: Optimizer,
+    data_train: List,
+    tokenizer: Union[naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer],
+    batch_size: int,
+    number_bits: int,
+    step: int,
+    freq: int,
+    device: str,
 ):
     ### Train the model for one epoch.
     total_loss = 0.0
@@ -33,7 +42,9 @@ def train_epoch(
             number_bits=number_bits,
             tokens=input_tensor,
             prompt_length=prompt_length,
+            masking_index=tokenizer.masking_index,
         )
+
         total_loss += loss if loss is not None else 0
 
         if batch % freq == 0 and batch > 0:
@@ -44,21 +55,20 @@ def train_epoch(
                 )
             )
             total_loss = 0.0
-    # return total_loss / (batch + 1)
 
 
 def train(
-    method,
-    optimizer,
-    num_epochs,
-    data_train,
-    data_test,
-    tokenizer,
-    batch_size,
-    number_bits,
+    method: Union[Llada, ARM],
+    optimizer: Optimizer,
+    num_epochs: int,
+    data_train: List,
+    data_test: List,
+    tokenizer: Union[naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer],
+    batch_size: int,
+    number_bits: int,
+    seq_len: int,
 ):
     device = method.device
-    seq_len = 2 * number_bits + 1
 
     best_acc = 0
     save_dir = "./weights"
@@ -100,7 +110,6 @@ def train(
         prompts, target_answers, _, _ = get_batch(
             "test", j, data_train, data_test, tokenizer, batch_size
         )
-
         sampled_tokens = method.sample(input_tokens=prompts, seq_len=seq_len)
         for i in range(batch_size):
             print(

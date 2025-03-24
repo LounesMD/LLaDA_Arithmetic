@@ -38,7 +38,7 @@ class ARM:
         self.criterion = nn.CrossEntropyLoss()
         self.name = name
 
-    def train_batch(self, optimizer, number_bits, tokens, prompt_length):
+    def train_batch(self, optimizer, number_bits, tokens, prompt_length, masking_index):
         self.model.zero_grad()
         output, _ = self.model(
             tokens

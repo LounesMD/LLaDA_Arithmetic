@@ -21,6 +21,7 @@ class naive_tokenizer:
         self.pad_token = pad_token
         self.eos_token = eos_token
         self.mask_token = mask_token
+        self.masking_index = 2 * number_bits + 2
 
     def clean(self, text):
         """
@@ -151,7 +152,7 @@ class group_pad_tokenizer:
         self.mask_token = mask_token
         self.ntokens = len(self.vocab)
         self.pattern = f"[^{re.escape(''.join(self.vocab))}]"
-
+        self.masking_index = 2 * number_bits + 1
         self.number_bits = number_bits
 
     def clean(self, text):

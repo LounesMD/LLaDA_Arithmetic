@@ -57,45 +57,28 @@ class Llada:
         number_bits: int,
         tokens: torch.Tensor,
         prompt_length=None,
+        masking_index: int = None,
     ):
         """
         Train on a single batch using a specified mask_ratio in [0,1].
         This represents one “step” or iteration of gradient descent.
         Returns the loss value.
+
+        masking_index (int) defines the first index from which the sequence can be masked.
         """
         mask_ratio = torch.rand((1, tokens.size(1))).to(device=self.device)
         # mask_ratio = torch.clamp(torch.rand((1, tokens.size(1))).to(device=self.device),min=1/(number_bits+1))
-
         tokens = tokens.to(self.device)
-        ### /!\ I mask only the result of the operation /!\ ###
-        ### Not the best implementation, but it's a start ###
-        k = 2 * number_bits + 1  # Index of the equal sign
-        masked_tokens, mask_positions = self.random_mask(tokens, mask_ratio, k)
+        masked_tokens, mask_positions = self.random_mask(
+            tokens, mask_ratio, masking_index
+        )
         output, _ = self.model(
             masked_tokens
         )  # shape: (seq_len, batch_size, vocab_size)
-        _, B, _ = output.size()
-        if False:
-            # Unvectorized loss. To use it, change the reduction of the criterion to 'sum'.
-            final_loss = 0
-            cpt = 0
-            for i in range(B):
-                if sum(mask_positions[:, i]).item() > 0:
-                    final_loss += (
-                        self.criterion(
-                            output[:, i, :][mask_positions[:, i]],
-                            tokens[:, i][mask_positions[:, i]],
-                        )
-                        / mask_ratio.squeeze(0)[i]
-                    )
-                    cpt += 1
-            if cpt == 0:
-                return None
-            final_loss /= cpt
-        else:
-            loss = self.criterion(output.permute(1, 2, 0), tokens.T)
-            final_loss = ((loss * mask_positions.permute(1, 0)).sum(dim=1)).mean()
-            # final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
+
+        # Masked (Indicator function) sum cross-entropy
+        loss = self.criterion(output.permute(1, 2, 0), tokens.T)
+        final_loss = ((loss * mask_positions.permute(1, 0)).sum(dim=1)).mean()
 
         optimizer.zero_grad()
         final_loss.backward()

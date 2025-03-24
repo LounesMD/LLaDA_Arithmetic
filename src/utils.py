@@ -54,14 +54,29 @@ def parse_arguments():
         "--num_epochs", type=int, default=5, help="Number of training steps."
     )
 
-    parser.add_argument("--device", type=str, default="cuda", help="Device to use")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        choices=["cuda", "mps", "cpu"],
+        help="Device to use",
+    )
 
     parser.add_argument("--data_size", type=int, default=64_000, help="Dataset size.")
 
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
-    
-    parser.add_argument("--learning_rate", type=float, default=5e-4, help="Learning rate.")
-    
+
+    parser.add_argument(
+        "--learning_rate", type=float, default=5e-4, help="Learning rate."
+    )
+
+    parser.add_argument(
+        "--seq_length",
+        type=int,
+        default=21,
+        help="Defines the length of the sequence to be sampled by Llada.",
+    )
+
     return parser.parse_args()
 
 
