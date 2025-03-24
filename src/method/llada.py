@@ -75,7 +75,7 @@ class Llada:
 
         # Masked (Indicator function) sum cross-entropy
         loss = self.criterion(output.permute(1, 2, 0), tokens.T)
-        final_loss = ((loss * mask_positions.permute(1, 0)).sum(dim=1)).mean()
+        final_loss = ((loss * mask_positions.permute(1, 0)*(1/mask_ratio)).sum(dim=1)).mean()
 
         optimizer.zero_grad()
         final_loss.backward()
