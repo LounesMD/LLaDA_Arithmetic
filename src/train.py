@@ -91,7 +91,7 @@ def train(
             save_path = os.path.join(save_dir, "{}_best.pth".format(method.name))
             method.save(save_path)
         # Save a copy of the latest model.
-        save_path = os.path.join(save_dir, "{}_last.pth".format(method.name))
+        save_path = os.path.join(save_dir, "{}_step{}.pth".format(method.name, e))
         method.save(save_path)
 
     print("\nSampling from the trained model...")
