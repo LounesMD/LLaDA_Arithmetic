@@ -40,6 +40,7 @@ class ARM:
 
     def train_batch(self, optimizer, number_bits, tokens, prompt_length):
         self.model.zero_grad()
+        prompt_length = prompt_length[0]
         output, _ = self.model(
             tokens
         )  # (prompt_length + answers_length + 1, batch_size, ntokens)
