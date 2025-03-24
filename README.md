@@ -1,6 +1,6 @@
-# MVA Large Language Models Course - Project
+# LLaDA: From Text to Arithmetic Generation
 
-This repository contains the code for the project of the LLM course of the MVA master at ENS Paris-Saclay.
+In this repository, we provide a complete implementation of the training and inference pipeline for [LLaDA](https://arxiv.org/pdf/2502.09992), applied to arithmetic operations and sorting tasks.
 <p align="center">
   <img src="gif/llada_arm_gif.gif" width="512" height="256" title="LLADA vs ARM generation">
 </p>
