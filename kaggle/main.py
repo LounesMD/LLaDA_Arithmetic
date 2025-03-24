@@ -9,6 +9,7 @@ subprocess.run(
 )
 os.chdir("LLaDA_Arithmetic")
 
+
 # Define hyperparameters
 num_epochs = 5
 number_bits = 20
@@ -17,9 +18,11 @@ device = "cuda"
 # Run the training script
 subprocess.run(
     ["python", "src/main.py",
-     "----num_epochs", f"{num_epochs}",
+     "--num_epochs", f"{num_epochs}",
      "--number_bits", f"{number_bits}",
      "--device", device,
+     "--method", "llada",
+     "--tokenizer", "gpt2",
     ],
     check=True,
 )

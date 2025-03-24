@@ -54,15 +54,22 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--num_epochs", type=int, default=5, help="Number of training steps."
+        "--num_epochs",
+        type=int,
+        default=5,
+        help="Number of training steps."
     )
 
-    parser.add_argument("--device", type=str, default="cuda", help="Device to use")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="Device to use")
 
     parser.add_argument("--data_size", type=int, default=64_000, help="Dataset size.")
 
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
-    
+
     return parser.parse_args()
 
 
