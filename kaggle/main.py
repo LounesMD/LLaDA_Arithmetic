@@ -11,7 +11,7 @@ os.chdir("LLaDA_Arithmetic")
 
 
 # Define hyperparameters
-num_epochs = 3
+num_epochs = 10
 number_bits = 3
 device = "cuda"
 
