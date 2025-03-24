@@ -85,14 +85,14 @@ def train(method,optimizer,num_epochs, train_loader, test_loader, tokenizer,batc
             break
         # Assuming 'prompts' and 'target_answers' are already in the batch format
         sampled_tokens = method.sample(input_tokens=prompts, seq_len=seq_len)
-
-        for i in range(prompts.size(0)):  # Iterating over the batch size
+        print(sampled_tokens.shape)
+        for i in range(batch_size):
             print(
                 "Sampled tokens:",
-                tokenizer.decode(sampled_tokens[i].cpu().numpy().tolist()),
+                tokenizer.decode(sampled_tokens[:, i].cpu().numpy().tolist()),
             )
             print(
                 "Target tokens:",
-                tokenizer.decode(target_answers[i].cpu().numpy().tolist()),
+                tokenizer.decode(target_answers[:, i].cpu().numpy().tolist()),
             )
             print()
