@@ -86,10 +86,7 @@ def train(method,optimizer,num_epochs, train_loader, test_loader, tokenizer,batc
         # Assuming 'prompts' and 'target_answers' are already in the batch format
         prompts = prompts.permute(1, 0)
         target_answers = target_answers.permute(1, 0)
-        print('prompts.shape', prompts.shape)
-        print('target_answers.shape', target_answers.shape)
         sampled_tokens = method.sample(input_tokens=prompts, seq_len=seq_len)
-        print('sampled_tokens.shape', sampled_tokens.shape)
         for i in range(batch_size):
             print(
                 "Sampled tokens:",
