@@ -219,7 +219,7 @@ class Llada:
 
             equality_test = answers_tokens == target_answers.cpu()
             correct += torch.all(equality_test, axis=0).float().sum()
-        accuracy = correct / len(test_loader)
+        accuracy = correct / len(test_loader.dataset)
         return accuracy.item()
 
     def save(self, path):
