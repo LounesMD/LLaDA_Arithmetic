@@ -12,7 +12,7 @@ os.chdir("LLaDA_Arithmetic")
 
 # Define hyperparameters
 num_epochs = 5
-number_bits = 20
+number_bits = 3
 device = "cuda"
 
 # Run the training script
