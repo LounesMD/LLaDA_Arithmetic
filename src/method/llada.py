@@ -1,12 +1,9 @@
-import random
-import time
 from typing import Literal
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 
 from method.utils import add_gumbel_noise, get_num_transfer_tokens
 
