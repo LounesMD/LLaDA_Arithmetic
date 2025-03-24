@@ -21,7 +21,7 @@ subprocess.run(
      "--num_epochs", f"{num_epochs}",
      "--number_bits", f"{number_bits}",
      "--device", device,
-     "--method", "llada",
+     "--method", "arm",
      "--tokenizer", "naive",
     ],
     check=True,
