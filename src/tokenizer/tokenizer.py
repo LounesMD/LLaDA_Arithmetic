@@ -236,6 +236,6 @@ class group_pad_tokenizer:
             + str(int(b))
             + "="
             + "".join(
-                [self.id_to_token[x] for x in token_list[-self.number_bits - 1 :]]
+                [self.id_to_token[x] for x in token_list[equal_idx + 1:]]
             )
         )

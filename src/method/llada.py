@@ -215,7 +215,7 @@ class Llada:
         return x.cpu()
 
     @torch.no_grad()
-    def evaluate(self, data_test, batch_size, tokenizer):
+    def evaluate(self, data_test, batch_size, tokenizer, nb_steps=5):
         # Turn on evaluation mode disables dropout.
         correct = 0.0
         for batch, i in enumerate(range(0, len(data_test) - 1, batch_size)):
@@ -227,7 +227,7 @@ class Llada:
 
             # TODO: Check why it should be length_answers + 1
             output = self.sample(
-                input_tokens=prompts, seq_len=length_answers + 1, steps=5
+                input_tokens=prompts, seq_len=length_answers + 1, steps=nb_steps
             )
 
             answers_tokens = output[length_prompts:, :]
@@ -241,4 +241,4 @@ class Llada:
         torch.save(self.model.state_dict(), path)
 
     def load(self, path):
-        self.model.load_state_dict(torch.load(path))
+        self.model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
