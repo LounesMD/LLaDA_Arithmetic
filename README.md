@@ -1,6 +1,11 @@
 # MVA Large Language Models Course - Project
 
 This repository contains the code for the project of the LLM course of the MVA master at ENS Paris-Saclay.
+<p align="center">
+  <img src="gif/llada_arm_gif.gif" width="512" height="256" title="LLADA vs ARM generation">
+</p>
+
+
 
 ## Installation
 
