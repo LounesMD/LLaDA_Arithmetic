@@ -14,7 +14,7 @@ conda activate llm_project
 ### Run the project
 To run train and run LLaDA:
 ```bash
-python src/main.py --method llada --tokenizer group_pad --num_epochs 5 --number_bits 20
+python src/main.py --method llada --tokenizer group_pad --num_epochs 5 --number_bits 20 --device cpu --data_size 64000 --batch_size 32 --learning_rate 5e-4 --seq_length 21
 ```
 
 To train the model using Kaggle's GPU, ensure you have a Kaggle account and API key, adapt the `kaggle/kernel-metadata.json` file to your Kaggle username, and run:
@@ -30,4 +30,4 @@ We would like to thank:
 
 ## Contact and Contributors
 
-This project is conducted by: [Nicolas Sereyjol-Garros](), [Tom Ravaud](), [Christopher Marouani](), and [Lounès Meddahi]().
+This project is conducted by: [Nicolas Sereyjol-Garros](https://github.com/nicolas-srjg), [Tom Ravaud](https://github.com/TomRavaud), [Christopher Marouani](https://github.com/chris-mrn), and [Lounès Meddahi](https://github.com/LounesMD).
