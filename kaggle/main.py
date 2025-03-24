@@ -22,7 +22,7 @@ subprocess.run(
      "--number_bits", f"{number_bits}",
      "--device", device,
      "--method", "arm",
-     "--tokenizer", "naive",
+     "--tokenizer", "group_pad_tokenizer",
     ],
     check=True,
 )
