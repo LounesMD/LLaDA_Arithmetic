@@ -22,7 +22,7 @@ def main():
     # Split data into training and testing sets
     train_data, test_data = train_test_split(dataset, test_size=0.2)
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
-    train_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
+    test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
     # Initialize model
     model = TransformerModel(
@@ -50,7 +50,7 @@ def main():
         optimizer=optimizer,
         num_epochs=args.num_epochs,
         train_loader=train_loader,
-        train_loader=train_loader,
+        test_loader=test_loader,
         tokenizer=tokenizer,
         batch_size=args.batch_size,
         number_bits=args.number_bits,

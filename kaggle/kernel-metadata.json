@@ -1,5 +1,5 @@
 {
-  "id": "[USERNAME]/train-llada",
+  "id": "christophermarouani/train-llada",
   "title": "train-llada",
   "code_file": "main.py",
   "language": "python",
