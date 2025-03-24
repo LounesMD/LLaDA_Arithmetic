@@ -1,12 +1,12 @@
 import os
 from typing import List, Union
+from torch.utils.data import DataLoader
 
 import torch
 from torch.optim import Optimizer
 
 from method.arm import ARM
 from method.llada import Llada
-from method.utils import get_batch
 from tokenizer.tokenizer import (
     group_pad_tokenizer,
     naive_pad_tokenizer,
@@ -17,7 +17,7 @@ from tokenizer.tokenizer import (
 def train_epoch(
     method: Union[Llada, ARM],
     optimizer: Optimizer,
-    data_train: List,
+    train_loader: DataLoader,
     tokenizer: Union[naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer],
     batch_size: int,
     number_bits: int,
@@ -27,13 +27,9 @@ def train_epoch(
 ):
     ### Train the model for one epoch.
     total_loss = 0.0
-    for batch, i in enumerate(range(0, len(data_train) - batch_size - 1, batch_size)):
-        prompts, target_answers, prompt_length, _ = get_batch(
-            "train", i, data_train, None, tokenizer, batch_size
-        )
-        prompts = prompts.to(device)
-        target_answers = target_answers.to(device)
-
+    for batch, (prompts, target_answers, prompt_length, _) in enumerate(train_loader):
+        prompts = prompts.to(device).permute(1, 0)
+        target_answers = target_answers.to(device).permute(1, 0)
         input_tensor = torch.cat((prompts, target_answers), 0)
         method.model.zero_grad()
 
@@ -51,7 +47,7 @@ def train_epoch(
             cur_loss = total_loss / freq
             print(
                 "| {:5d}/{:5d} batches | loss {:5.2f}".format(
-                    batch, len(data_train) // batch_size, cur_loss
+                    batch, len(train_loader.dataset) // batch_size, cur_loss
                 )
             )
             total_loss = 0.0
@@ -61,8 +57,8 @@ def train(
     method: Union[Llada, ARM],
     optimizer: Optimizer,
     num_epochs: int,
-    data_train: List,
-    data_test: List,
+    train_loader: DataLoader,
+    test_loader: DataLoader,
     tokenizer: Union[naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer],
     batch_size: int,
     number_bits: int,
@@ -79,7 +75,7 @@ def train(
         train_epoch(
             method=method,
             optimizer=optimizer,
-            data_train=data_train,
+            train_loader=train_loader,
             tokenizer=tokenizer,
             batch_size=batch_size,
             number_bits=number_bits,
@@ -89,7 +85,7 @@ def train(
         )
 
         method.model.eval()
-        test_accuracy = method.evaluate(data_test, batch_size, tokenizer)
+        test_accuracy = method.evaluate(test_loader, batch_size, tokenizer)
         print("-" * 89)
         print(
             "| end of epoch {:3d} | test accuracy {:5.2f}".format(e + 1, test_accuracy)
@@ -106,10 +102,13 @@ def train(
 
     print("\nSampling from the trained model...")
     # Generate a few examples:
-    for j in range(5):
-        prompts, target_answers, _, _ = get_batch(
-            "test", j, data_train, data_test, tokenizer, batch_size
-        )
+# Generate a few examples:
+    for j, (prompts, target_answers, _, _) in enumerate(test_loader):
+        if j >= 5:  # Stop after 5 examples
+            break
+        # Assuming 'prompts' and 'target_answers' are already in the batch format
+        prompts = prompts.permute(1, 0)
+        target_answers = target_answers.permute(1, 0)
         sampled_tokens = method.sample(input_tokens=prompts, seq_len=seq_len)
         for i in range(batch_size):
             print(

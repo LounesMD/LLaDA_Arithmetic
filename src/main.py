@@ -2,6 +2,10 @@ import torch.optim as optim
 
 from method.utils import TransformerModel
 from train import train
+from utils import process_data
+from data import AdditionDataset
+from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 from utils import initialize_method, initialize_tokenizer, parse_arguments, prepare_data
 
 
@@ -9,11 +13,16 @@ def main():
     # Parse arguments
     args = parse_arguments()
 
-    # Prepare training and test data
-    data_train, data_test = prepare_data(args)
-
     # Initialize tokenizer
     tokenizer = initialize_tokenizer(args.tokenizer, args.number_bits)
+
+    # Prepare data
+    dataset = prepare_data(args, tokenizer)
+
+    # Split data into training and testing sets
+    train_data, test_data = train_test_split(dataset, test_size=0.2)
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+    train_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
     # Initialize model
     model = TransformerModel(
@@ -40,8 +49,8 @@ def main():
         method=method,
         optimizer=optimizer,
         num_epochs=args.num_epochs,
-        data_train=data_train,
-        data_test=data_test,
+        train_loader=train_loader,
+        train_loader=train_loader,
         tokenizer=tokenizer,
         batch_size=args.batch_size,
         number_bits=args.number_bits,

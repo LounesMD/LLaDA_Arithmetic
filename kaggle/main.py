@@ -3,10 +3,11 @@ import subprocess
 
 # Clone the repository
 subprocess.run(
-    ["git", "clone", "https://github.com/LounesMD/LLaDA_Arithmetic.git"],
+    ["git", "clone", "--branch", "dataloader", "--single-branch", "https://github.com/LounesMD/LLaDA_Arithmetic.git"],
     check=True,
 )
 os.chdir("LLaDA_Arithmetic")
+
 
 # Define hyperparameters
 method = "llada"
