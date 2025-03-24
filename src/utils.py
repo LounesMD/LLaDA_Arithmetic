@@ -4,6 +4,7 @@ from method.llada import Llada
 from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
 import torch
 from data import AdditionDataset
+import random
 
 def sample_datapoint(number_bits=3):
     """
@@ -61,6 +62,7 @@ def parse_arguments():
     parser.add_argument("--data_size", type=int, default=64_000, help="Dataset size.")
 
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
+    
     return parser.parse_args()
 
 

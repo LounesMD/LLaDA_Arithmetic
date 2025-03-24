@@ -1,5 +1,4 @@
 import os
-
 import torch
 
 
@@ -80,19 +79,20 @@ def train(method,optimizer,num_epochs, train_loader, test_loader, tokenizer,batc
 
     print("\nSampling from the trained model...")
     # Generate a few examples:
-    for j in range(5):
-        prompts, target_answers, _, _ = get_batch(
-            "test", j, train_loader, test_loader, tokenizer, batch_size
-        )
-
+# Generate a few examples:
+    for j, (prompts, target_answers, _, _) in enumerate(test_loader):
+        if j >= 5:  # Stop after 5 examples
+            break
+        # Assuming 'prompts' and 'target_answers' are already in the batch format
         sampled_tokens = method.sample(input_tokens=prompts, seq_len=seq_len)
-        for i in range(batch_size):
+
+        for i in range(prompts.size(0)):  # Iterating over the batch size
             print(
                 "Sampled tokens:",
-                tokenizer.decode(sampled_tokens[:, i].cpu().numpy().tolist()),
+                tokenizer.decode(sampled_tokens[i].cpu().numpy().tolist()),
             )
             print(
                 "Target tokens:",
-                tokenizer.decode(target_answers[:, i].cpu().numpy().tolist()),
+                tokenizer.decode(target_answers[i].cpu().numpy().tolist()),
             )
             print()

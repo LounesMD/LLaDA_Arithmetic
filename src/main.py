@@ -6,6 +6,8 @@ from utils import process_data
 from data import AdditionDataset
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
+from utils import initialize_method, initialize_tokenizer, parse_arguments, prepare_data
+
 
 def main():
     # Parse arguments
