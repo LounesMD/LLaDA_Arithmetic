@@ -96,8 +96,6 @@ class ARM:
 
             output = self.sample(prompts, length_answers + 1) # (prompt_length + answers_length + 1, batch_size)
             answers_tokens = output[prompt_length:, :] # (answers_length + 1, batch_size), contains tokens
-            print(answers_tokens)
-            print(target_answers)
             equality_test = answers_tokens == target_answers # (answers_length + 1, batch_size), contains boolean values
             correct += torch.all(equality_test, axis=0).float().sum()
         accuracy = correct / len(test_loader)
