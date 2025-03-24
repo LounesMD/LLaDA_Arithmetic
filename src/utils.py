@@ -49,7 +49,7 @@ def parse_arguments():
         "--tokenizer",
         type=str,
         default="naive",
-        choices=["naive", "naive_pad", "group_pad"],
+        choices=["naive", "naive_pad", "group_pad", "gpt2"],
         help="Tokenizer between 'naive', 'naive_pad' and 'group_pad'.",
     )
 

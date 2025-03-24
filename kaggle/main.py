@@ -22,7 +22,7 @@ subprocess.run(
      "--number_bits", f"{number_bits}",
      "--device", device,
      "--method", "llada",
-     "--tokenizer", "gpt2",
+     "--tokenizer", "naive",
     ],
     check=True,
 )
