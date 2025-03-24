@@ -12,7 +12,7 @@ os.chdir("LLaDA_Arithmetic")
 # Define hyperparameters
 method = "llada"
 tokenizer = "group_pad"
-learning_rate = 5e-4
+learning_rate = 1e-3
 num_epochs = 5
 number_bits = 20
 device = "cuda"
