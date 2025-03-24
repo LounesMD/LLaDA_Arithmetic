@@ -32,8 +32,7 @@ def main():
     )
 
     # Set up optimizer
-    learning_rate = 1e-4
-    optimizer = optim.AdamW(method.model.parameters(), lr=learning_rate)
+    optimizer = optim.AdamW(method.model.parameters(), lr=args.learning_rate)
 
     # Train the model
     print("Training model on toy addition dataset...")

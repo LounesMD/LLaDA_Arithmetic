@@ -1,6 +1,6 @@
 {
-  "id": "nicolassg/train_llada",
-  "title": "Train LLaDA",
+  "id": "[USERNAME]/train-llada",
+  "title": "train-llada",
   "code_file": "main.py",
   "language": "python",
   "kernel_type": "script",

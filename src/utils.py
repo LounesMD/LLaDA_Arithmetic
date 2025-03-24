@@ -59,6 +59,9 @@ def parse_arguments():
     parser.add_argument("--data_size", type=int, default=64_000, help="Dataset size.")
 
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
+    
+    parser.add_argument("--learning_rate", type=float, default=5e-4, help="Learning rate.")
+    
     return parser.parse_args()
 
 
