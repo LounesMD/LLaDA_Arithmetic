@@ -1,5 +1,3 @@
-import json
-
 import torch.optim as optim
 
 from method.utils import TransformerModel
@@ -13,10 +11,6 @@ def main():
 
     # Prepare training and test data
     data_train, data_test = prepare_data(args)
-
-    # Save the dataset
-    with open("data.json", "w") as f:
-        json.dump({"train": data_train, "test": data_test}, f)
 
     # Initialize tokenizer
     tokenizer = initialize_tokenizer(args.tokenizer, args.number_bits)
@@ -43,14 +37,15 @@ def main():
     # Train the model
     print("Training model on toy addition dataset...")
     train(
-        method,
-        optimizer,
-        args.num_epochs,
-        data_train,
-        data_test,
-        tokenizer,
-        args.batch_size,
-        args.number_bits,
+        method=method,
+        optimizer=optimizer,
+        num_epochs=args.num_epochs,
+        data_train=data_train,
+        data_test=data_test,
+        tokenizer=tokenizer,
+        batch_size=args.batch_size,
+        number_bits=args.number_bits,
+        seq_len=args.seq_length,
     )
 
 

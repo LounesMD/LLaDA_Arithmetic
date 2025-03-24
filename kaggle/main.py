@@ -1,6 +1,5 @@
-import subprocess
 import os
-
+import subprocess
 
 # Clone the repository
 subprocess.run(
@@ -19,13 +18,23 @@ device = "cuda"
 
 # Run the training script
 subprocess.run(
-    ["python", "src/main.py",
-     "--method", method,
-     "--tokenizer", tokenizer,
-     "--learning_rate", f"{learning_rate}",
-     "--num_epochs", f"{num_epochs}",
-     "--number_bits", f"{number_bits}",
-     "--device", device,
+    [
+        "python",
+        "src/main.py",
+        "--method",
+        method,
+        "--tokenizer",
+        tokenizer,
+        "--learning_rate",
+        f"{learning_rate}",
+        "--num_epochs",
+        f"{num_epochs}",
+        "--number_bits",
+        f"{number_bits}",
+        "--seq_length",
+        f"{number_bits+1}",
+        "--device",
+        device,
     ],
     check=True,
 )
