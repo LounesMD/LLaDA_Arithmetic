@@ -72,7 +72,7 @@ class Llada:
         )  # shape: (seq_len, batch_size, vocab_size)
         _, B, _ = output.size()
         loss = self.criterion(output.permute(1,2,0),tokens.T)
-        final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)).mean()
+        final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*(1/mask_ratio)).mean()
         # final_loss = ((loss*mask_positions.permute(1, 0)).sum(dim=1)*mask_ratio).mean()
 
         optimizer.zero_grad()
