@@ -142,7 +142,7 @@ def main():
     seq_len = args.number_bits + 1  # e.g. "12+345="'s result should fit in 7 tokens
     batch_size = 32
     num_epochs = args.num_epochs
-    learning_rate = 1e-4
+    learning_rate = 1e-5
     device = args.device
 
     data = []
