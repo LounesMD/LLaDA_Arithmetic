@@ -10,8 +10,8 @@ subprocess.run(
 
 os.chdir("LLaDA_Arithmetic")
 
-# Define hyperparameters
-num_epochs = 2
+# Define hyperpara
+num_epochs = 10
 number_bits = 20
 device = "cuda"
 
