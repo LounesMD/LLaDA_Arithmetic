@@ -80,16 +80,23 @@ def train(
             batch_size=batch_size,
             number_bits=number_bits,
             step=e,
-            freq=100,
+            freq=int(0.25*batch_size),
             device=device,
         )
 
         method.model.eval()
         test_accuracy = method.evaluate(test_loader, batch_size, tokenizer)
         print("-" * 89)
-        print(
-            "| end of epoch {:3d} | test accuracy {:5.2f}".format(e + 1, test_accuracy)
-        )
+        # find a way to improve this
+        if train_loader.dataset[0][1].numel() != 0:
+            print(
+                "| end of epoch {:3d} | test accuracy {:5.2f}".format(e + 1, test_accuracy)
+            )
+        else :
+            print(
+                "| end of epoch {:3d}".format(e + 1)
+            )
+
         print("-" * 89)
         # Save the model if it has a better accuracy than the previous best.
         if test_accuracy > best_acc:
@@ -115,8 +122,9 @@ def train(
                 "Sampled tokens:",
                 tokenizer.decode(sampled_tokens[:, i].cpu().numpy().tolist()),
             )
-            print(
-                "Target tokens:",
-                tokenizer.decode(target_answers[:, i].cpu().numpy().tolist()),
-            )
+            if target_answers.numel() != 0:
+                print(
+                    "Target tokens:",
+                    tokenizer.decode(target_answers[:, i].cpu().numpy().tolist()),
+                )
             print()

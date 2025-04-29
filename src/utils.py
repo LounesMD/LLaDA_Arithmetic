@@ -146,8 +146,8 @@ def initialize_tokenizer(tokenizer, number_bits):
     elif tokenizer == 'gpt2':
         import tiktoken
         tokenizer = tiktoken.get_encoding('gpt2')
-        tokenizer.masking_index = 2
-        tokenizer.token_to_id = {"[MASK]": tokenizer.masking_index}
+        tokenizer.masking_index = 0
+        tokenizer.token_to_id = {"[MASK]": 2}
         tokenizer.ntokens = 50257
         return tokenizer
     else:
