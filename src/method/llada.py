@@ -63,7 +63,7 @@ class Llada:
 
         masking_index (int) defines the first index from which the sequence can be masked.
         """
-        mask_ratio = torch.rand((1, tokens.size(1))).to(device=self.device)
+        mask_ratio = torch.rand((0.8, tokens.size(1))).to(device=self.device)
         # mask_ratio = torch.clamp(torch.rand((1, tokens.size(1))).to(device=self.device),min=1/(number_bits+1))
         tokens = tokens.to(self.device)
         masked_tokens, mask_positions = self.random_mask(
