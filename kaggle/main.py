@@ -16,7 +16,7 @@ learning_rate = 5e-4
 num_epochs = 5
 number_bits = 20
 device = "cuda"
-
+dataset = "test"
 # Run the training script
 subprocess.run(
     [
@@ -24,6 +24,8 @@ subprocess.run(
         "src/main.py",
         "--method",
         method,
+        "--dataset",
+        dataset,
         "--tokenizer",
         tokenizer,
         "--learning_rate",
