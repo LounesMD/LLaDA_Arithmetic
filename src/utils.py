@@ -26,7 +26,9 @@ def prepare_data(args, tokenizer):
         dataset = AdditionDataset(X, Y, length_prompts, length_answers)
 
     elif args.dataset == 'text':
+        print("Loading text...")
         data = open('input.txt', 'r').read()
+
         tokens = tokenizer.encode(data)
         X = torch.tensor(tokens)
         dataset = TextDataset(X, None, args.batch_size, 0)
