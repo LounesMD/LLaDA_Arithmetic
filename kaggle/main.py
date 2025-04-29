@@ -16,7 +16,7 @@ learning_rate = 5e-4
 num_epochs = 5
 number_bits = 20
 device = "cuda"
-dataset = "test"
+dataset = "text"
 # Run the training script
 subprocess.run(
     [
