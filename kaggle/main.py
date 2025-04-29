@@ -12,8 +12,8 @@ os.chdir("LLaDA_Arithmetic")
 # Define hyperparameters
 method = "llada"
 tokenizer = "gpt2"
-learning_rate = 5e-4
-num_epochs = 5
+learning_rate = 1e-4
+num_epochs = 100
 number_bits = 20
 device = "cuda"
 dataset = "text"
