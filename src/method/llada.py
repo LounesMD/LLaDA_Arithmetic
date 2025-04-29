@@ -89,7 +89,7 @@ class Llada:
         seq_len: int,
         input_tokens: torch.Tensor,
         steps: int = 5,
-        re_mask_mode: str = "low_confidence",
+        re_mask_mode: str = "random",
         temperature: float = 1.0,
         cfg_scale: float = 0.0,
         block_length: int = None,
