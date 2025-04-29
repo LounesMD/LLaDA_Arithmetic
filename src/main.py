@@ -35,7 +35,7 @@ def main():
     # Initialize method (ARM or Llada)
     print("Initializing model...")
     method = initialize_method(
-        args.method, model, len(tokenizer.vocab), tokenizer, args.device
+        args.method, model, tokenizer.ntokens, tokenizer, args.device
     )
 
     # Set up optimizer

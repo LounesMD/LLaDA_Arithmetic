@@ -3,7 +3,7 @@ from method.arm import ARM
 from method.llada import Llada
 from tokenizer.tokenizer import naive_tokenizer, naive_pad_tokenizer, group_pad_tokenizer
 import torch
-from data import AdditionDataset
+from data import AdditionDataset, TextDataset
 import random
 
 def sample_datapoint(number_bits=3):
@@ -18,11 +18,19 @@ def sample_datapoint(number_bits=3):
     return (str(a_int) + "+" + str(b_int) + "=", str(sum_int))
 
 def prepare_data(args, tokenizer):
-    """Prepare the training and testing datasets."""
-    data = [sample_datapoint(args.number_bits) for _ in range(args.data_size)]
-    X, Y, length_prompts, length_answers = process_data(data, tokenizer)
+    """Prepare the datasets."""
+    if args.dataset == 'addition':
+        data = [sample_datapoint(args.number_bits) for _ in range(args.data_size)]
+        X, Y, length_prompts, length_answers = process_data(data, tokenizer)
 
-    dataset = AdditionDataset(X, Y, length_prompts, length_answers)
+        dataset = AdditionDataset(X, Y, length_prompts, length_answers)
+
+    elif args.dataset == 'text':
+        data = open('input.txt', 'r').read()
+        tokens = tokenizer.encode(data)
+        X = torch.tensor(tokens)
+        dataset = TextDataset(X, None, args.batch_size, 0)
+
     return dataset
 
 def parse_arguments():
@@ -43,6 +51,14 @@ def parse_arguments():
         default="llada",
         choices=["llada", "arm"],
         help="Method between 'llada' and 'arm'.",
+    )
+
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="addition",
+        choices=["addition", "text"],
+        help="Dataset between 'addition' and 'text'.",
     )
 
     parser.add_argument(
@@ -68,12 +84,23 @@ def parse_arguments():
         help="Device to use",
     )
 
-    parser.add_argument("--data_size", type=int, default=64_000, help="Dataset size.")
-
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
+    parser.add_argument(
+        "--data_size",
+        type=int,
+        default=64_000,
+        help="Dataset size.")
 
     parser.add_argument(
-        "--learning_rate", type=float, default=5e-4, help="Learning rate."
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size.")
+
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=5e-4,
+        help="Learning rate."
     )
 
     parser.add_argument(
@@ -114,6 +141,13 @@ def initialize_tokenizer(tokenizer, number_bits):
         return naive_pad_tokenizer(number_bits)
     elif tokenizer == "group_pad":
         return group_pad_tokenizer(number_bits)
+    elif tokenizer == 'gpt2':
+        import tiktoken
+        tokenizer = tiktoken.get_encoding('gpt2')
+        tokenizer.masking_index = 2
+        tokenizer.token_to_id = {"[MASK]": tokenizer.masking_index}
+        tokenizer.ntokens = 50257
+        return tokenizer
     else:
         raise ValueError("Invalid tokenizer.")
 

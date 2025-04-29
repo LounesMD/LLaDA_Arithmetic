@@ -71,7 +71,6 @@ class TransformerModel(nn.Transformer):
     def forward(self, src):
         mask = self._generate_square_subsequent_mask(len(src)).to(self.device)
         self.src_mask = mask
-
         src = self.input_emb(src) * math.sqrt(self.ninp)
         src = self.pos_encoder(src)
         output_enc = self.encoder(src, mask=self.src_mask)
@@ -114,4 +113,3 @@ def get_num_transfer_tokens(mask_index, steps):
     for i in range(mask_num.size(0)):
         num_transfer_tokens[i, : remainder[i]] += 1
     return num_transfer_tokens.T
-
