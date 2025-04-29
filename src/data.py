@@ -20,7 +20,7 @@ class AdditionDataset(Dataset):
 
 class TextDataset(Dataset):
     def __init__(self, X, Y, length_prompts, length_answers):
-        self.X = X[:1000]
+        self.X = X
         self.Y = Y
         self.length_prompts = length_prompts
         self.length_answers = length_answers

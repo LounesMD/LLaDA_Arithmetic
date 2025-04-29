@@ -3,7 +3,7 @@ import subprocess
 
 # Clone the repository
 subprocess.run(
-    ["git", "clone", "--branch", "main", "--single-branch", "https://github.com/LounesMD/LLaDA_Arithmetic.git"],
+    ["git", "clone", "--branch", "text", "--single-branch", "https://github.com/LounesMD/LLaDA_Arithmetic.git"],
     check=True,
 )
 os.chdir("LLaDA_Arithmetic")
@@ -11,7 +11,7 @@ os.chdir("LLaDA_Arithmetic")
 
 # Define hyperparameters
 method = "llada"
-tokenizer = "group_pad"
+tokenizer = "gpt2"
 learning_rate = 5e-4
 num_epochs = 5
 number_bits = 20
